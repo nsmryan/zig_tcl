@@ -100,9 +100,10 @@ const Tcl_GetStringFromObj = tcl.Tcl_GetStringFromObj;
 const Tcl_NewStringObj = tcl.Tcl_NewStringObj;
 const Tcl_NewIntObj = tcl.Tcl_NewIntObj;
 const Tcl_SetObjResult = tcl.Tcl_SetObjResult;
-const Tcl_Interp = [*c]tcl.Tcl_Interp;
+const Tcl_Interp = *tcl.Tcl_Interp;
 const ClientData = tcl.ClientData;
 const Tcl_Obj = [*c]tcl.Tcl_Obj;
+const Tcl_Command = tcl.Tcl_Command;
 
 fn Hello_ZigTclCmd(cdata: ClientData, interp: Tcl_Interp, objv: []const Tcl_Obj) TclError!void {
     _ = cdata;
@@ -129,7 +130,16 @@ export fn Hello_Cmd(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_i
     return ZigTcl_CallCmd(Hello_ZigTclCmd, cdata, interp, objc, objv);
 }
 
-export fn Zigtcl_Init(interp: *tcl.Tcl_Interp) c_int {
+export fn Wrap_ZigCmd(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) c_int {
+    var function = @ptrCast(ZigTclCmd, cdata);
+    return ZigTcl_CallCmd(function, cdata, interp, objc, objv);
+}
+
+fn ZigTcl_CreateObjCommand(interp: Tcl_Interp, name: [*:0]const u8, function: ZigTclCmd) tcl.Tcl_Command {
+    return tcl.Tcl_CreateObjCommand(interp, name, Wrap_ZigCmd, @intToPtr(tcl.ClientData, @ptrToInt(function)), null);
+}
+
+export fn Zigtcl_Init(interp: Tcl_Interp) c_int {
     std.debug.print("\nStarting Zig TCL Test {d}\n", .{interp});
 
     //var rc = tcl.Tcl_InitStubs(interp, "8.6", 0);
@@ -140,6 +150,8 @@ export fn Zigtcl_Init(interp: *tcl.Tcl_Interp) c_int {
     //const gpa = general_purpose_allocator.allocator();
 
     _ = tcl.Tcl_CreateObjCommand(interp, "hello", Hello_Cmd, null, null);
+    //_ = tcl.Tcl_CreateObjCommand(interp, "zigTclHello", Wrap_ZigCmd, @intToPtr(tcl.ClientData, @ptrToInt(Hello_ZigTclCmd)), null);
+    _ = ZigTcl_CreateObjCommand(interp, "zigTclHello", Hello_ZigTclCmd);
 
     return tcl.Tcl_PkgProvide(interp, "zigtcl", "0.1.0");
 }
