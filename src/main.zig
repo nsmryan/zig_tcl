@@ -43,7 +43,7 @@ const Struct = struct {
 //
 // For TCL function wrappers, consider converting to slices, *, usize, isize, etc, for ziggification.
 
-const ZigTclCmd = fn (cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) TclError!void;
+const ZigTclCmd = fn (cdata: ClientData, interp: Tcl_Interp, objv: []const Tcl_Obj) TclError!void;
 
 fn ZigTcl_HandleReturn(result: c_int) TclError!void {
     if (result == tcl.TCL_ERROR) {
@@ -75,7 +75,7 @@ fn ZigTcl_TclResult(result: TclError!void) c_int {
 }
 
 fn ZigTcl_CallCmd(function: ZigTclCmd, cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) c_int {
-    return ZigTcl_HandleReturn(function(cdata, interp, objc, objv));
+    return ZigTcl_TclResult(function(cdata, interp, objv[0..@intCast(usize, objc)]));
 }
 
 fn Tcl_GetIntFromObj(interp: Tcl_Interp, obj: Tcl_Obj) TclError!c_int {
@@ -89,7 +89,7 @@ fn Tcl_GetIntFromObj(interp: Tcl_Interp, obj: Tcl_Obj) TclError!c_int {
     }
 }
 
-fn Tcl_ListObjAppendElement(interp: [*c]tcl.Tcl_Interp, list: [*c]tcl.Tcl_Obj, obj: [*c]tcl.Tcl_Obj) TclError!void {
+fn Tcl_ListObjAppendElement(interp: Tcl_Interp, list: Tcl_Obj, obj: Tcl_Obj) TclError!void {
     const result = tcl.Tcl_ListObjAppendElement(interp, list, obj);
     return ZigTcl_HandleReturn(result);
 }
@@ -101,10 +101,10 @@ const Tcl_NewStringObj = tcl.Tcl_NewStringObj;
 const Tcl_NewIntObj = tcl.Tcl_NewIntObj;
 const Tcl_SetObjResult = tcl.Tcl_SetObjResult;
 const Tcl_Interp = [*c]tcl.Tcl_Interp;
-const Tcl_ClientData = tcl.ClientData;
+const ClientData = tcl.ClientData;
 const Tcl_Obj = [*c]tcl.Tcl_Obj;
 
-fn Hello_ZigTclCmd(cdata: Tcl_ClientData, interp: Tcl_Interp, objv: []const Tcl_Obj) TclError!void {
+fn Hello_ZigTclCmd(cdata: ClientData, interp: Tcl_Interp, objv: []const Tcl_Obj) TclError!void {
     _ = cdata;
 
     var s: Struct = Struct{};
@@ -126,7 +126,7 @@ fn Hello_ZigTclCmd(cdata: Tcl_ClientData, interp: Tcl_Interp, objv: []const Tcl_
 // TODO consider using cdata to smuggle the function pointer in so this can be made generic.
 // Then the user just writes the underlying ZigTcl function and gets this call without effort.
 export fn Hello_Cmd(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) c_int {
-    return ZigTcl_TclResult(Hello_ZigTclCmd(cdata, interp, objv[0..@intCast(usize, objc)]));
+    return ZigTcl_CallCmd(Hello_ZigTclCmd, cdata, interp, objc, objv);
 }
 
 export fn Zigtcl_Init(interp: *tcl.Tcl_Interp) c_int {
