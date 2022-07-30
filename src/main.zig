@@ -72,6 +72,14 @@ fn ZigTcl_ErrorToInt(err: TclError) c_int {
     }
 }
 
+fn ZigTcl_TclResult(result: TclError!void) c_int {
+    if (result) {
+        return tcl.TCL_OK;
+    } else |err| {
+        return ZigTcl_ErrorToInt(err);
+    }
+}
+
 fn ZigTcl_CallCmd(function: ZigTclCmd, cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) c_int {
     return ZigTcl_HandleReturn(function(cdata, interp, objc, objv));
 }
@@ -88,19 +96,17 @@ fn Tcl_ListObjAppendElement(interp: [*c]tcl.Tcl_Interp, list: [*c]tcl.Tcl_Obj, o
 
 // Wrapping functions without returns does not seem that helpful. For now just re-export the underlying function.
 // One option would be to raise the *c and c_ints to * and usize for ziggification.
-//fn Tcl_GetStringFromObj(obj: [*c]tcl.Tcl_Obj, length: [*c]c_int) TclError![c*]u8;
 const Tcl_GetStringFromObj = tcl.Tcl_GetStringFromObj;
 const Tcl_NewStringObj = tcl.Tcl_NewStringObj;
 const Tcl_NewIntObj = tcl.Tcl_NewIntObj;
+const Tcl_SetObjResult = tcl.Tcl_SetObjResult;
 
-// TODO wrap all TCL calls. Make new function as a ZigTcl cmd, and call with ZigTcl_CallCmd.
-export fn Hello_Cmd(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) c_int {
+fn Hello_ZigTclCmd(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) TclError!void {
     _ = cdata;
     _ = objc;
-    _ = objv;
 
     var s: Struct = Struct{};
-    Tcl_GetIntFromObj(interp, objv[1], &s.int) catch |err| return ZigTcl_ErrorToInt(err);
+    try Tcl_GetIntFromObj(interp, objv[1], &s.int);
     std.debug.print("int = {}\n", .{s.int});
 
     var length: c_int = undefined;
@@ -109,12 +115,14 @@ export fn Hello_Cmd(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_i
     std.mem.copy(u8, s.string[0..], str[0..@intCast(usize, length)]);
 
     var list = tcl.Tcl_NewListObj(0, null);
-    Tcl_ListObjAppendElement(interp, list, Tcl_NewIntObj(s.int)) catch |err| return ZigTcl_ErrorToInt(err);
-    Tcl_ListObjAppendElement(interp, list, Tcl_NewStringObj(s.string[0..], s.string.len)) catch |err| return ZigTcl_ErrorToInt(err);
+    try Tcl_ListObjAppendElement(interp, list, Tcl_NewIntObj(s.int));
+    try Tcl_ListObjAppendElement(interp, list, Tcl_NewStringObj(s.string[0..], s.string.len));
 
-    _ = tcl.Tcl_SetObjResult(interp, list);
+    Tcl_SetObjResult(interp, list);
+}
 
-    return tcl.TCL_OK;
+export fn Hello_Cmd(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) c_int {
+    return ZigTcl_TclResult(Hello_ZigTclCmd(cdata, interp, objc, objv));
 }
 
 export fn Zigtcl_Init(interp: *tcl.Tcl_Interp) c_int {
