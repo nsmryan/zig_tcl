@@ -41,7 +41,10 @@ const Struct = struct {
 // Struct manager command using heavy comptime- given a type and allocator, allocate type and store allocator,
 // try to fill in struct fields, register a destructor, and a command that comptime calls into decls of the struct, if possible.
 //
-// For TCL function wrappers, consider converting to slices, *, usize, isize, etc, for ziggification.
+// Interface- user defines their own init function and provides an allocator for smuggling things in. They can use another
+// allocator for their structs.
+// They can define wrapped commands, and define struct wrappers for passing calls on to decls.
+// Maybe a wrapper for a pointer that just passes the cdata to the given function as well.
 
 const ZigTclCmd = fn (cdata: ClientData, interp: Tcl_Interp, objv: []const Tcl_Obj) TclError!void;
 
