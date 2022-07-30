@@ -30,25 +30,19 @@ const Struct = struct {
 // or
 // CData(T) = T x Allocator. The allocator's memory contains an allocator structure to use for dellocation.
 //
-// Consider an error set with all TCL errors. Then wrap calls in a 'if' that checks for error returns and returns back a c_int.
-// This would allow code to be more ziggy within functions using error returns.
-//
 // Consider adding another parameter to the CData- a pointer to the implementing function. All commands would use the same handler,
 // which would pass arguments to the implementing function and handle error returns. If an error, turn to c_int and return, otherwise
 // return TCL_OK. In this design, wrap used TCL C API functions in trivial ziggy versions that return error codes.
-//
-// If wrapping all TCL functions, or just ones that I use, this would result in general ziggy TCL interface, as well as the more
-// advanced options, which should be kept optional, to manage a struct and comptime call its decls.
-// If wrap TCL functions, try to write a generic handler that calls a function and handles error set results.
 //
 // Consider a global map from pointers to allocator used in destructors to deallocate instead of putting allocators into memory
 // with the struct, which seems problematic for generic types without more pointers.
 //
 // Possible goals:
-// TCL C API wrapper functions for easier extension writing.
 // Struct manager command using heavy comptime- given a type and allocator, allocate type and store allocator,
 // try to fill in struct fields, register a destructor, and a command that comptime calls into decls of the struct, if possible.
 //
+// For TCL function wrappers, consider converting to slices, *, usize, isize, etc, for ziggification.
+
 const ZigTclCmd = fn (cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) TclError!void;
 
 fn ZigTcl_HandleReturn(result: c_int) TclError!void {
@@ -84,9 +78,15 @@ fn ZigTcl_CallCmd(function: ZigTclCmd, cdata: tcl.ClientData, interp: [*c]tcl.Tc
     return ZigTcl_HandleReturn(function(cdata, interp, objc, objv));
 }
 
-fn Tcl_GetIntFromObj(interp: [*c]tcl.Tcl_Interp, obj: [*c]tcl.Tcl_Obj, int: [*c]c_int) TclError!void {
-    const result = tcl.Tcl_GetIntFromObj(interp, obj, int);
-    return ZigTcl_HandleReturn(result);
+fn Tcl_GetIntFromObj(interp: Tcl_Interp, obj: Tcl_Obj) TclError!c_int {
+    var int: c_int = 0;
+    const result = tcl.Tcl_GetIntFromObj(interp, obj, &int);
+
+    if (ZigTcl_HandleReturn(result)) {
+        return int;
+    } else |err| {
+        return err;
+    }
 }
 
 fn Tcl_ListObjAppendElement(interp: [*c]tcl.Tcl_Interp, list: [*c]tcl.Tcl_Obj, obj: [*c]tcl.Tcl_Obj) TclError!void {
@@ -100,13 +100,15 @@ const Tcl_GetStringFromObj = tcl.Tcl_GetStringFromObj;
 const Tcl_NewStringObj = tcl.Tcl_NewStringObj;
 const Tcl_NewIntObj = tcl.Tcl_NewIntObj;
 const Tcl_SetObjResult = tcl.Tcl_SetObjResult;
+const Tcl_Interp = [*c]tcl.Tcl_Interp;
+const Tcl_ClientData = tcl.ClientData;
+const Tcl_Obj = [*c]tcl.Tcl_Obj;
 
-fn Hello_ZigTclCmd(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) TclError!void {
+fn Hello_ZigTclCmd(cdata: Tcl_ClientData, interp: Tcl_Interp, objv: []const Tcl_Obj) TclError!void {
     _ = cdata;
-    _ = objc;
 
     var s: Struct = Struct{};
-    try Tcl_GetIntFromObj(interp, objv[1], &s.int);
+    s.int = try Tcl_GetIntFromObj(interp, objv[1]);
     std.debug.print("int = {}\n", .{s.int});
 
     var length: c_int = undefined;
@@ -121,8 +123,10 @@ fn Hello_ZigTclCmd(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_in
     Tcl_SetObjResult(interp, list);
 }
 
+// TODO consider using cdata to smuggle the function pointer in so this can be made generic.
+// Then the user just writes the underlying ZigTcl function and gets this call without effort.
 export fn Hello_Cmd(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) c_int {
-    return ZigTcl_TclResult(Hello_ZigTclCmd(cdata, interp, objc, objv));
+    return ZigTcl_TclResult(Hello_ZigTclCmd(cdata, interp, objv[0..@intCast(usize, objc)]));
 }
 
 export fn Zigtcl_Init(interp: *tcl.Tcl_Interp) c_int {
