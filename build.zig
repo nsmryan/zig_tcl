@@ -6,11 +6,13 @@ pub fn build(b: *std.build.Builder) void {
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
     const mode = b.standardReleaseOptions();
 
-    const lib = b.addSharedLibrary("zigtcl", "src/main.zig", b.version(0, 1, 0));
+    const lib = b.addSharedLibrary("zigexample", "examples/example.zig", b.version(0, 1, 0));
     lib.setBuildMode(mode);
     lib.linkLibC();
     lib.addLibPath("c:/tcltk/bin");
     lib.addLibPath("c:/tcltk/lib");
+    lib.addPackagePath("zigtcl", "src/zigtcl.zig");
+
     // Stubs does not work- can't seem to get Zig to pick up the .a archive file.
     // Building with zig itself also doesn't work- some issue with 'zig cc'
     // Building with MagicSplat's tclstub86.lib file also doesn't work.
@@ -18,7 +20,7 @@ pub fn build(b: *std.build.Builder) void {
     lib.linkSystemLibraryName("tcl86");
     lib.install();
 
-    const main_tests = b.addTest("src/main.zig");
+    const main_tests = b.addTest("src/zigtcl.zig");
     main_tests.setBuildMode(mode);
 
     const test_step = b.step("test", "Run library tests");
