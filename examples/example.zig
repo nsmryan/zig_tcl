@@ -30,10 +30,6 @@ fn Hello_ZigTclCmd(cdata: zt.ClientData, interp: zt.Tcl_Interp, objv: []const zt
     zt.Tcl_SetObjResult(interp, list);
 }
 
-export fn Hello_Cmd(cdata: zt.ClientData, interp: zt.Tcl_Interp, objc: c_int, objv: [*c]const zt.Tcl_Obj) c_int {
-    return zt.ZigTcl_CallCmd(Hello_ZigTclCmd, cdata, interp, objc, objv);
-}
-
 export fn Zigexample_Init(interp: zt.Tcl_Interp) c_int {
     std.debug.print("\nStarting Zig TCL Test {d}\n", .{interp});
 
