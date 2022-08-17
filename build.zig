@@ -1,5 +1,6 @@
 const std = @import("std");
 const Version = @import("std").builtin.Version;
+const builtin = @import("builtin");
 
 pub fn build(b: *std.build.Builder) void {
     // Standard release options allow the person running `zig build` to select
@@ -10,7 +11,7 @@ pub fn build(b: *std.build.Builder) void {
     lib.setBuildMode(mode);
     lib.linkLibC();
 
-    if (builtin.os.tag == builtin.Os.windows) {
+    if (builtin.os.tag == .windows) {
         lib.addLibPath("c:/tcltk/bin");
         lib.addLibPath("c:/tcltk/lib");
         lib.addIncludeDir("c:/tcltk/include");

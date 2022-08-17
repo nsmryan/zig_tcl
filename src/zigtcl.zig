@@ -3,7 +3,8 @@ const testing = std.testing;
 
 const tcl = @cImport({
     //@cDefine("USE_TCL_STUBS", "1");
-    @cInclude("c:/tcltk/include/tcl.h");
+    //@cInclude("c:/tcltk/include/tcl.h");
+    @cInclude("/usr/include/tcl.h");
 });
 
 // TCL_OK is not represented as it is the result of a normal return.
