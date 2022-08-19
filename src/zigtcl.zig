@@ -77,9 +77,18 @@ pub fn ZigTcl_CallCmd(function: ZigTclCmd, cdata: tcl.ClientData, interp: [*c]tc
 }
 
 ///Tcl_GetIntFromObj wrapper.
-pub fn GetIntFromObj(interp: tcl.Tcl_Interp, obj: tcl.Tcl_Obj) TclError!c_int {
+pub fn GetIntFromObj(interp: Interp, obj: [*c]tcl.Tcl_Obj) TclError!c_int {
     var int: c_int = 0;
     const result = tcl.Tcl_GetIntFromObj(interp, obj, &int);
+
+    ZigTcl_HandleReturn(result) catch |err| return err;
+    return int;
+}
+
+///Tcl_GetDoubleFromObj wrapper.
+pub fn GetDoubleFromObj(interp: Interp, obj: [*c]tcl.Tcl_Obj) TclError!f64 {
+    var int: f64 = 0;
+    const result = tcl.Tcl_GetDoubleFromObj(interp, obj, &int);
 
     ZigTcl_HandleReturn(result) catch |err| return err;
     return int;

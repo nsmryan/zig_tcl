@@ -23,19 +23,19 @@ export fn Struct_TclCmd(cdata: zt.ClientData, interp: [*c]zt.Tcl_Interp, objc: c
     var name_length: c_int = undefined;
     const name = zt.Tcl_GetStringFromObj(objv[1], &name_length);
 
-    if (std.mem.eql(u8, name, "int")) {
-        s.int = try zt.Tcl_GetIntFromObj(interp, objv[2]);
+    if (std.mem.eql(u8, std.mem.span(name), "int")) {
+        s.int = zt.GetIntFromObj(interp, objv[2]) catch return zt.TCL_ERROR;
         std.debug.print("int = {}\n", .{s.int});
-    } else if (std.mem.eql(u8, name, "zig_int")) {
-        s.zig_int = try zt.Tcl_GetIntFromObj(interp, objv[2]);
+    } else if (std.mem.eql(u8, std.mem.span(name), "zig_int")) {
+        s.zig_int = @intCast(u8, zt.GetIntFromObj(interp, objv[2]) catch return zt.TCL_ERROR);
         std.debug.print("zig_int = {}\n", .{s.zig_int});
-    } else if (std.mem.eql(u8, name, "string")) {
+    } else if (std.mem.eql(u8, std.mem.span(name), "string")) {
         var length: c_int = undefined;
         const str = zt.Tcl_GetStringFromObj(objv[2], &length);
         std.debug.print("str = {s}\n", .{str});
         std.mem.copy(u8, s.string[0..], str[0..@intCast(usize, length)]);
-    } else if (std.mem.eql(u8, name, "float")) {
-        s.float = try zt.Tcl_GetDoubleFromObj(interp, objv[2]);
+    } else if (std.mem.eql(u8, std.mem.span(name), "float")) {
+        s.float = @floatCast(f32, zt.GetDoubleFromObj(interp, objv[2]) catch return zt.TCL_ERROR);
         std.debug.print("float = {}\n", .{s.float});
     }
 
@@ -65,7 +65,7 @@ fn Hello_ZigTclCmd(cdata: zt.ClientData, interp: zt.Interp, objv: []const [*c]zt
 }
 
 export fn Zigexample_Init(interp: zt.Interp) c_int {
-    std.debug.print("\nStarting Zig TCL Test {d}\n", .{interp});
+    //std.debug.print("\nStarting Zig TCL Test {d}\n", .{interp});
 
     //var rc = zt.Tcl_InitStubs(interp, "8.6", 0);
     var rc = zt.Tcl_PkgRequire(interp, "Tcl", "8.6", 0);
