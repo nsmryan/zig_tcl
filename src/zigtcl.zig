@@ -77,7 +77,7 @@ pub fn ZigTcl_CallCmd(function: ZigTclCmd, cdata: tcl.ClientData, interp: [*c]tc
 }
 
 ///Tcl_GetIntFromObj wrapper.
-pub fn GetIntFromObj(interp: Interp, obj: [*c]tcl.Tcl_Obj) TclError!c_int {
+pub fn GetIntFromObj(interp: Interp, obj: Obj) TclError!c_int {
     var int: c_int = 0;
     const result = tcl.Tcl_GetIntFromObj(interp, obj, &int);
 
@@ -86,7 +86,7 @@ pub fn GetIntFromObj(interp: Interp, obj: [*c]tcl.Tcl_Obj) TclError!c_int {
 }
 
 ///Tcl_GetDoubleFromObj wrapper.
-pub fn GetDoubleFromObj(interp: Interp, obj: [*c]tcl.Tcl_Obj) TclError!f64 {
+pub fn GetDoubleFromObj(interp: Interp, obj: Obj) TclError!f64 {
     var int: f64 = 0;
     const result = tcl.Tcl_GetDoubleFromObj(interp, obj, &int);
 
@@ -105,22 +105,9 @@ pub fn NewStringObj(str: []u8) tcl.Tcl_Obj {
     return tcl.Tcl_NewStringObj(str.ptr, @intCast(c_int, str.len));
 }
 
-// Wrapping functions without returns does not seem that helpful. For now just re-export the underlying function.
-// One option would be to raise the *c and c_ints to * and usize for ziggification.
-//pub const Tcl_GetStringFromObj = tcl.Tcl_GetStringFromObj;
-//pub const Tcl_NewIntObj = tcl.Tcl_NewIntObj;
-//pub const Tcl_NewWideIntObj = tcl.Tcl_NewWideIntObj;
-//pub const Tcl_StringObj = tcl.Tcl_StringObj;
-//pub const Tcl_NewUnicodeObj = tcl.Tcl_NewUnicodeObj;
-//pub const Tcl_SetStringObj = tcl.Tcl_SetStringObj;
-//pub const Tcl_NewLongObj = tcl.Tcl_NewLongObj;
-//pub const Tcl_SetObjResult = tcl.Tcl_SetObjResult;
-//pub const Tcl_PkgRequire = tcl.Tcl_PkgRequire;
-//pub const Tcl_PkgProvide = tcl.Tcl_PkgProvide;
-//pub const Tcl_NewListObj = tcl.Tcl_NewListObj;
 pub const Interp = [*c]tcl.Tcl_Interp;
 //pub const ClientData = tcl.ClientData;
-//pub const Obj = [*c]tcl.Tcl_Obj;
+pub const Obj = [*c]tcl.Tcl_Obj;
 //pub const Command = tcl.Tcl_Command;
 
 /// Call a ZigTclCmd function, passing in the TCL C API style arguments and returning a c_int result.
@@ -134,3 +121,6 @@ pub export fn Wrap_ZigCmd(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, obj
 pub fn CreateObjCommand(interp: Interp, name: [*:0]const u8, function: ZigTclCmd) tcl.Tcl_Command {
     return tcl.Tcl_CreateObjCommand(interp, name, Wrap_ZigCmd, @intToPtr(tcl.ClientData, @ptrToInt(function)), null);
 }
+
+pub fn GetFromObj(comptime T: type, obj: Obj) TclError!T {}
+pub fn SetToObj(comptime T: type, value: T, obj: Obj) TclError!void {}

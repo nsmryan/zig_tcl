@@ -24,19 +24,33 @@ export fn Struct_TclCmd(cdata: zt.ClientData, interp: [*c]zt.Tcl_Interp, objc: c
     const name = zt.Tcl_GetStringFromObj(objv[1], &name_length);
 
     if (std.mem.eql(u8, std.mem.span(name), "int")) {
-        s.int = zt.GetIntFromObj(interp, objv[2]) catch return zt.TCL_ERROR;
-        std.debug.print("int = {}\n", .{s.int});
+        if (objc > 2) {
+            s.int = zt.GetIntFromObj(interp, objv[2]) catch return zt.TCL_ERROR;
+        }
+        zt.Tcl_SetObjResult(interp, zt.Tcl_NewIntObj(s.int));
     } else if (std.mem.eql(u8, std.mem.span(name), "zig_int")) {
-        s.zig_int = @intCast(u8, zt.GetIntFromObj(interp, objv[2]) catch return zt.TCL_ERROR);
-        std.debug.print("zig_int = {}\n", .{s.zig_int});
+        if (objc > 2) {
+            s.zig_int = @intCast(u8, zt.GetIntFromObj(interp, objv[2]) catch return zt.TCL_ERROR);
+        }
+        zt.Tcl_SetObjResult(interp, zt.Tcl_NewIntObj(s.zig_int));
     } else if (std.mem.eql(u8, std.mem.span(name), "string")) {
-        var length: c_int = undefined;
-        const str = zt.Tcl_GetStringFromObj(objv[2], &length);
-        std.debug.print("str = {s}\n", .{str});
-        std.mem.copy(u8, s.string[0..], str[0..@intCast(usize, length)]);
+        if (objc > 2) {
+            var length: c_int = undefined;
+            const str = zt.Tcl_GetStringFromObj(objv[2], &length);
+
+            if (length > s.string.len) {
+                return zt.TCL_ERROR;
+            }
+            std.mem.copy(u8, s.string[0..], str[0..@intCast(usize, length)]);
+            const len = @intCast(usize, length);
+            std.mem.set(u8, s.string[len..s.string.len], 0);
+        }
+        zt.Tcl_SetObjResult(interp, zt.Tcl_NewStringObj(&s.string, s.string.len));
     } else if (std.mem.eql(u8, std.mem.span(name), "float")) {
-        s.float = @floatCast(f32, zt.GetDoubleFromObj(interp, objv[2]) catch return zt.TCL_ERROR);
-        std.debug.print("float = {}\n", .{s.float});
+        if (objc > 2) {
+            s.float = @floatCast(f32, zt.GetDoubleFromObj(interp, objv[2]) catch return zt.TCL_ERROR);
+        }
+        zt.Tcl_SetObjResult(interp, zt.Tcl_NewDoubleObj(@floatCast(f64, s.float)));
     }
 
     return zt.TCL_OK;
