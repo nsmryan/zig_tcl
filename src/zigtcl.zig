@@ -228,4 +228,12 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) TclError!T {
     }
 }
 
-//pub fn SetToObj(comptime T: type, value: T, obj: Obj) TclError!void {}
+pub fn NewObj(value: anytype) TclError!Obj {
+    switch (@typeInfo(@TypeOf(value))) {
+        .Bool => return tcl.Tcl_NewIntObj(@boolToInt(value)),
+
+        else => {
+            @compileError("Can not create a TCL object from a value of type " ++ @typeName(@TypeOf(value)));
+        },
+    }
+}

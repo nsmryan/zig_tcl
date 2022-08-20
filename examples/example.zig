@@ -50,7 +50,7 @@ export fn Struct_TclCmd(cdata: zt.ClientData, interp: [*c]zt.Tcl_Interp, objc: c
         if (objc > 2) {
             s.bl = zt.GetFromObj(bool, interp, objv[2]) catch return zt.TCL_ERROR;
         }
-        zt.Tcl_SetObjResult(interp, zt.Tcl_NewIntObj(@boolToInt(s.bl)));
+        zt.Tcl_SetObjResult(interp, zt.NewObj(s.bl) catch return zt.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "int")) {
         if (objc > 2) {
             s.int = zt.GetFromObj(c_int, interp, objv[2]) catch return zt.TCL_ERROR;
