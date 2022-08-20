@@ -173,7 +173,8 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) TclError!T {
 
         .Pointer => return @intToPtr(T, @intCast(usize, try GetWideIntFromObj(interp, obj))),
 
-        // NOTE enums should go back and forth as strings
+        // NOTE ideally we could first check for strings, then fall back to integers, to allow
+        // either to be passed between TCL and Zig.
         .Enum => {
             const str = try GetStringFromObj(obj);
             if (std.meta.stringToEnum(T, str)) |enm| {
@@ -184,8 +185,13 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) TclError!T {
             }
         },
 
-        //.Array => |info| return comptime hasUniqueRepresentation(info.child),
+        // NOTE untested
+        .Array => {
+            const ptr = @intToPtr(*T, @intCast(usize, try GetWideIntFromObj(interp, obj)));
+            return ptr.*;
+        },
 
+        // NOTE untested
         .Union => {
             const ptr = @intToPtr(*T, @intCast(usize, try GetWideIntFromObj(interp, obj)));
             return ptr.*;
@@ -196,7 +202,12 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) TclError!T {
             return ptr.*;
         },
 
-        // NOTE optional may be convertable
+        // NOTE optional may be convertable. There are likely edge cases here-
+        // how to represent null? For child types like string, an empty string and null are the same.
+        // A pointer to a global static null object also doesn't work- it is identical to an integer.
+        // Potentially this could be an actual pointer, null == 0, and we need to dereference for any
+        // optional. This seems like a comprimise, but might work.
+
         // NOTE error union may be convertable
 
         // NOTE vector may be convertable
