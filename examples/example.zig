@@ -17,6 +17,13 @@ const Struct = struct {
     string: [64]u8 = undefined,
     float: f32 = 0.0,
     ptr: *u8 = undefined,
+    enm: Enum,
+};
+
+const Enum = enum {
+    E1,
+    E2,
+    E3,
 };
 
 export fn Struct_TclCmd(cdata: zt.ClientData, interp: [*c]zt.Tcl_Interp, objc: c_int, objv: [*c]const [*c]zt.Tcl_Obj) c_int {
@@ -80,6 +87,23 @@ export fn Struct_TclCmd(cdata: zt.ClientData, interp: [*c]zt.Tcl_Interp, objc: c
             s.ptr = zt.GetFromObj(*u8, interp, objv[2]) catch return zt.TCL_ERROR;
         }
         zt.Tcl_SetObjResult(interp, zt.Tcl_NewWideIntObj(@intCast(isize, @ptrToInt(s.ptr))));
+    } else if (std.mem.eql(u8, std.mem.span(name), "enm")) {
+        if (objc > 2) {
+            s.enm = zt.GetFromObj(Enum, interp, objv[2]) catch return zt.TCL_ERROR;
+        }
+        var found: bool = false;
+        inline for (@typeInfo(Enum).Enum.fields) |field| {
+            if (field.value == @enumToInt(s.enm)) {
+                zt.Tcl_SetObjResult(interp, zt.Tcl_NewWideIntObj(@intCast(isize, @enumToInt(s.enm))));
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            zt.Tcl_SetObjResult(interp, zt.NewStringObj("Enum field value not found"[0..]));
+            return zt.TCL_ERROR;
+        }
     }
 
     return zt.TCL_OK;

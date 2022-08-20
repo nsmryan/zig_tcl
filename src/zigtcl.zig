@@ -125,7 +125,7 @@ pub fn ListObjAppendElement(interp: tcl.Tcl_Interp, list: tcl.Tcl_Obj, obj: tcl.
 }
 
 /// Tcl_NewStringObj wrapper.
-pub fn NewStringObj(str: []u8) tcl.Tcl_Obj {
+pub fn NewStringObj(str: []const u8) Obj {
     return tcl.Tcl_NewStringObj(str.ptr, @intCast(c_int, str.len));
 }
 
@@ -174,7 +174,15 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) TclError!T {
         .Pointer => return @intToPtr(T, @intCast(usize, try GetWideIntFromObj(interp, obj))),
 
         // NOTE enums should go back and forth as strings
-        //.Enum => |info| {},
+        .Enum => {
+            const str = try GetStringFromObj(obj);
+            if (std.meta.stringToEnum(T, str)) |enm| {
+                return enm;
+            } else {
+                // TODO ideally return a more expressive error, and use in the obj result.
+                return TclError.TCL_ERROR;
+            }
+        },
 
         //.Array => |info| return comptime hasUniqueRepresentation(info.child),
 

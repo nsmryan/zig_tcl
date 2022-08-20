@@ -20,6 +20,10 @@ proc runTests { } {
     set ptr [struct]
     checkField ptr $ptr
 
+    set value [struct enm E2]
+    set result [struct enm]
+    if { $value != $result } { throw ZIGTCLINVALID "enm '$result' did not match '$value'"  }
+
     puts "Tests Passed!"
 }
 
