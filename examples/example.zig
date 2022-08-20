@@ -16,12 +16,19 @@ const Struct = struct {
     zig_int: u8 = 0,
     string: [64]u8 = undefined,
     float: f32 = 0.0,
+    ptr: *u8 = undefined,
 };
 
 export fn Struct_TclCmd(cdata: zt.ClientData, interp: [*c]zt.Tcl_Interp, objc: c_int, objv: [*c]const [*c]zt.Tcl_Obj) c_int {
     _ = objc;
 
     var s = @ptrCast(*Struct, @alignCast(@alignOf(Struct), cdata));
+
+    if (objc == 1) {
+        // I believe wide int should be long enough for a pointer on all platforms.
+        zt.Tcl_SetObjResult(interp, zt.Tcl_NewWideIntObj(@intCast(isize, @ptrToInt(cdata))));
+        return zt.TCL_OK;
+    }
 
     var name_length: c_int = undefined;
     const name = zt.Tcl_GetStringFromObj(objv[1], &name_length);
@@ -53,14 +60,13 @@ export fn Struct_TclCmd(cdata: zt.ClientData, interp: [*c]zt.Tcl_Interp, objc: c
         zt.Tcl_SetObjResult(interp, zt.Tcl_NewIntObj(s.zig_int));
     } else if (std.mem.eql(u8, std.mem.span(name), "string")) {
         if (objc > 2) {
-            var length: c_int = undefined;
-            const str = zt.Tcl_GetStringFromObj(objv[2], &length);
+            const str = zt.GetStringFromObj(objv[2]) catch return zt.TCL_ERROR;
 
-            if (length > s.string.len) {
+            if (str.len > s.string.len) {
                 return zt.TCL_ERROR;
             }
-            std.mem.copy(u8, s.string[0..], str[0..@intCast(usize, length)]);
-            const len = @intCast(usize, length);
+            std.mem.copy(u8, s.string[0..], str);
+            const len = @intCast(usize, str.len);
             std.mem.set(u8, s.string[len..s.string.len], 0);
         }
         zt.Tcl_SetObjResult(interp, zt.Tcl_NewStringObj(&s.string, s.string.len));
@@ -69,6 +75,11 @@ export fn Struct_TclCmd(cdata: zt.ClientData, interp: [*c]zt.Tcl_Interp, objc: c
             s.float = zt.GetFromObj(f32, interp, objv[2]) catch return zt.TCL_ERROR;
         }
         zt.Tcl_SetObjResult(interp, zt.Tcl_NewDoubleObj(@floatCast(f64, s.float)));
+    } else if (std.mem.eql(u8, std.mem.span(name), "ptr")) {
+        if (objc > 2) {
+            s.ptr = zt.GetFromObj(*u8, interp, objv[2]) catch return zt.TCL_ERROR;
+        }
+        zt.Tcl_SetObjResult(interp, zt.Tcl_NewWideIntObj(@intCast(isize, @ptrToInt(s.ptr))));
     }
 
     return zt.TCL_OK;

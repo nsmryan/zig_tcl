@@ -112,6 +112,12 @@ pub fn GetDoubleFromObj(interp: Interp, obj: Obj) TclError!f64 {
     return int;
 }
 
+pub fn GetStringFromObj(obj: Obj) TclError![]const u8 {
+    var length: c_int = undefined;
+    const str = tcl.Tcl_GetStringFromObj(obj, &length);
+    return str[0..@intCast(usize, length)];
+}
+
 /// Tcl_ListObjAppendElement wrapper.
 pub fn ListObjAppendElement(interp: tcl.Tcl_Interp, list: tcl.Tcl_Obj, obj: tcl.Tcl_Obj) TclError!void {
     const result = tcl.Tcl_ListObjAppendElement(interp, list, obj);
@@ -165,7 +171,10 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) TclError!T {
             }
         },
 
-        //.Pointer => |info| return info.size != .Slice,
+        .Pointer => return @intToPtr(T, @intCast(usize, try GetWideIntFromObj(interp, obj))),
+
+        // NOTE enums should go back and forth as strings
+        //.Enum => |info| {},
 
         //.Array => |info| return comptime hasUniqueRepresentation(info.child),
 
@@ -182,10 +191,6 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) TclError!T {
 
         //    return @sizeOf(T) == sum_size;
         //},
-
-        // NOTE enums should be convertable with @intToEnum, although ideally check ranges first and throw
-        // a TCL exception.
-        //.Enum => return false,
 
         // NOTE optional may be convertable
         // NOTE error union may be convertable

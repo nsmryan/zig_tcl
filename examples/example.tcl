@@ -17,6 +17,9 @@ proc runTests { } {
     set result [struct float]
     if { abs($result - $flt) > 0.000001 } { throw ZIGTCLINVALID "float '$result' did not match" } 
 
+    set ptr [struct]
+    checkField ptr $ptr
+
     puts "Tests Passed!"
 }
 
