@@ -186,19 +186,15 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) TclError!T {
 
         //.Array => |info| return comptime hasUniqueRepresentation(info.child),
 
-        //.Union => |info| return comptime hasUniqueRepresentation(info.child),
+        .Union => {
+            const ptr = @intToPtr(*T, @intCast(usize, try GetWideIntFromObj(interp, obj)));
+            return ptr.*;
+        },
 
-        //.Struct => |info| {
-        //    var sum_size = @as(usize, 0);
-
-        //    inline for (info.fields) |field| {
-        //        const FieldType = field.field_type;
-        //        if (comptime !hasUniqueRepresentation(FieldType)) return false;
-        //        sum_size += @sizeOf(FieldType);
-        //    }
-
-        //    return @sizeOf(T) == sum_size;
-        //},
+        .Struct => {
+            const ptr = @intToPtr(*T, @intCast(usize, try GetWideIntFromObj(interp, obj)));
+            return ptr.*;
+        },
 
         // NOTE optional may be convertable
         // NOTE error union may be convertable

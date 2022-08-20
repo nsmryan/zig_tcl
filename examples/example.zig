@@ -31,9 +31,15 @@ export fn Struct_TclCmd(cdata: zt.ClientData, interp: [*c]zt.Tcl_Interp, objc: c
 
     var s = @ptrCast(*Struct, @alignCast(@alignOf(Struct), cdata));
 
+    // If given no arguments, return a pointer to the value.
     if (objc == 1) {
         // I believe wide int should be long enough for a pointer on all platforms.
-        zt.Tcl_SetObjResult(interp, zt.Tcl_NewWideIntObj(@intCast(isize, @ptrToInt(cdata))));
+        const ptr_obj = zt.Tcl_NewWideIntObj(@intCast(isize, @ptrToInt(cdata)));
+        const struct_copy = zt.GetFromObj(Struct, interp, ptr_obj) catch return zt.TCL_ERROR;
+
+        std.testing.expect(std.meta.eql(s.*, struct_copy)) catch @panic("struct ptr copy did not work!");
+
+        zt.Tcl_SetObjResult(interp, ptr_obj);
         return zt.TCL_OK;
     }
 
