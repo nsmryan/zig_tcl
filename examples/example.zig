@@ -55,12 +55,12 @@ export fn Struct_TclCmd(cdata: zt.ClientData, interp: [*c]zt.Tcl_Interp, objc: c
         if (objc > 2) {
             s.int = zt.GetFromObj(c_int, interp, objv[2]) catch return zt.TCL_ERROR;
         }
-        zt.Tcl_SetObjResult(interp, zt.Tcl_NewIntObj(s.int));
+        zt.Tcl_SetObjResult(interp, zt.NewObj(s.int) catch return zt.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "long")) {
         if (objc > 2) {
             s.long = zt.GetFromObj(c_long, interp, objv[2]) catch return zt.TCL_ERROR;
         }
-        zt.Tcl_SetObjResult(interp, zt.Tcl_NewLongObj(s.long));
+        zt.Tcl_SetObjResult(interp, zt.NewObj(s.long) catch return zt.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "wide")) {
         if (objc > 2) {
             s.wide = zt.GetFromObj(c_longlong, interp, objv[2]) catch return zt.TCL_ERROR;
@@ -70,7 +70,7 @@ export fn Struct_TclCmd(cdata: zt.ClientData, interp: [*c]zt.Tcl_Interp, objc: c
         if (objc > 2) {
             s.zig_int = zt.GetFromObj(u8, interp, objv[2]) catch return zt.TCL_ERROR;
         }
-        zt.Tcl_SetObjResult(interp, zt.Tcl_NewIntObj(s.zig_int));
+        zt.Tcl_SetObjResult(interp, zt.NewObj(s.zig_int) catch return zt.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "string")) {
         if (objc > 2) {
             const str = zt.GetStringFromObj(objv[2]) catch return zt.TCL_ERROR;
@@ -87,7 +87,7 @@ export fn Struct_TclCmd(cdata: zt.ClientData, interp: [*c]zt.Tcl_Interp, objc: c
         if (objc > 2) {
             s.float = zt.GetFromObj(f32, interp, objv[2]) catch return zt.TCL_ERROR;
         }
-        zt.Tcl_SetObjResult(interp, zt.Tcl_NewDoubleObj(@floatCast(f64, s.float)));
+        zt.Tcl_SetObjResult(interp, zt.NewObj(s.float) catch return zt.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "ptr")) {
         if (objc > 2) {
             s.ptr = zt.GetFromObj(*u8, interp, objv[2]) catch return zt.TCL_ERROR;

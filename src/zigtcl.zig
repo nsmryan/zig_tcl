@@ -232,6 +232,26 @@ pub fn NewObj(value: anytype) TclError!Obj {
     switch (@typeInfo(@TypeOf(value))) {
         .Bool => return tcl.Tcl_NewIntObj(@boolToInt(value)),
 
+        .Int => |info| {
+            if (info.bits <= @bitSizeOf(c_int)) {
+                return tcl.Tcl_NewIntObj(@intCast(c_int, value));
+            } else if (info.bits <= @bitSizeOf(c_long)) {
+                return tcl.Tcl_NewLongObj(@intCast(c_long, value));
+            } else if (info.bits <= @bitSizeOf(tcl.Tcl_WideInt)) {
+                return tcl.Tcl_NewWideIntObj(@intCast(c_longlong, value));
+            } else {
+                @compileError("Int type too wide for a Tcl_WideInt!");
+            }
+        },
+
+        .Float => |info| {
+            if (32 == info.bits) {
+                return tcl.Tcl_NewDoubleObj(@floatCast(f64, value));
+            } else {
+                return tcl.Tcl_NewDoubleObj(value);
+            }
+        },
+
         else => {
             @compileError("Can not create a TCL object from a value of type " ++ @typeName(@TypeOf(value)));
         },
