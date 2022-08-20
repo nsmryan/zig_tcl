@@ -85,6 +85,24 @@ pub fn GetIntFromObj(interp: Interp, obj: Obj) TclError!c_int {
     return int;
 }
 
+// Tcl_GetLongFromObj wrapper
+pub fn GetLongFromObj(interp: Interp, obj: Obj) TclError!c_int {
+    var long: c_long = 0;
+    const result = tcl.Tcl_GetLongFromObj(interp, obj, &long);
+
+    ZigTcl_HandleReturn(result) catch |err| return err;
+    return long;
+}
+
+// Tcl_GetWideIntFromObj wrapper
+pub fn GetWideIntFromObj(interp: Interp, obj: Obj) TclError!c_int {
+    var wide: tcl.Tcl_WideInt = 0;
+    const result = tcl.Tcl_GetWideIntFromObj(interp, obj, &wide);
+
+    ZigTcl_HandleReturn(result) catch |err| return err;
+    return wide;
+}
+
 ///Tcl_GetDoubleFromObj wrapper.
 pub fn GetDoubleFromObj(interp: Interp, obj: Obj) TclError!f64 {
     var int: f64 = 0;
@@ -122,5 +140,70 @@ pub fn CreateObjCommand(interp: Interp, name: [*:0]const u8, function: ZigTclCmd
     return tcl.Tcl_CreateObjCommand(interp, name, Wrap_ZigCmd, @intToPtr(tcl.ClientData, @ptrToInt(function)), null);
 }
 
-pub fn GetFromObj(comptime T: type, obj: Obj) TclError!T {}
-pub fn SetToObj(comptime T: type, value: T, obj: Obj) TclError!void {}
+pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) TclError!T {
+    switch (@typeInfo(T)) {
+        .Bool => return (try GetIntFromObj(interp, obj)) != 0,
+
+        .Int => |info| {
+            if (info.bits <= @bitSizeOf(c_int)) {
+                return GetIntFromObj(interp, obj);
+            } else if (info.bits <= @bitSizeOf(c_long)) {
+                return GetLongFromObj(interp, obj);
+            } else if (info.bits <= @bitSizeOf(tcl.Tcl_WideInt)) {
+                return GetWideIntFromObj(interp, obj);
+            }
+        },
+
+        .Float => |info| {
+            const dbl = try GetDoubleFromObj(interp, obj);
+            if (32 == info.bits) {
+                return @floatCast(f32, dbl);
+            } else {
+                return dbl;
+            }
+        },
+
+        //.Pointer => |info| return info.size != .Slice,
+
+        //.Array => |info| return comptime hasUniqueRepresentation(info.child),
+
+        //.Union => |info| return comptime hasUniqueRepresentation(info.child),
+
+        //.Struct => |info| {
+        //    var sum_size = @as(usize, 0);
+
+        //    inline for (info.fields) |field| {
+        //        const FieldType = field.field_type;
+        //        if (comptime !hasUniqueRepresentation(FieldType)) return false;
+        //        sum_size += @sizeOf(FieldType);
+        //    }
+
+        //    return @sizeOf(T) == sum_size;
+        //},
+
+        // NOTE enums should be convertable with @intToEnum, although ideally check ranges first and throw
+        // a TCL exception.
+        //.Enum => return false,
+
+        // NOTE optional may be convertable
+        // NOTE error union may be convertable
+
+        // NOTE vector may be convertable
+        //.Vector => |info| return comptime hasUniqueRepresentation(info.child) and
+        //@sizeOf(T) == @sizeOf(info.child) * info.len,
+
+        // NOTE error set may be convertable
+        //.ErrorSet,
+        //.Fn,
+        //.Frame,
+        //.AnyFrame,
+        //.EnumLiteral,
+        //.BoundFn,
+        //.Opaque,
+        else => {
+            @compileError("Can not convert type " ++ @typeName(T) ++ " to a TCL value");
+        },
+    }
+}
+
+//pub fn SetToObj(comptime T: type, value: T, obj: Obj) TclError!void {}
