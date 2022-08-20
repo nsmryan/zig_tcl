@@ -252,8 +252,40 @@ pub fn NewObj(value: anytype) TclError!Obj {
             }
         },
 
+        .Enum => {
+            return NewIntObj(value);
+            // NOTE this finds the string instead of the integer.
+            //inline for (std.meta.fields(@Type(value))) |field| {
+            //    if (field.value == value) {
+            //        return NewStringObj(field.name);
+            //    }
+            //}
+            //return TclError.TCL_ERROR;
+        },
+
+        // NOTE add pointer type.
+
+        // NOTE for complex types, maybe allocate and return pointer obj.
+        // There may be some design in which a string handle is return instead, and looked
+        // up within the extension. This may be safer?
+
         else => {
             @compileError("Can not create a TCL object from a value of type " ++ @typeName(@TypeOf(value)));
         },
     }
 }
+
+// Need to figure out allocators and how to wrap TCL's
+//pub fn TclAlloc(ptr: *u0, len: usize, ptr_align: u29, len_align: u29, ret_addr: usize) Error![]u8 {
+//    return tcl.Tcl_Alloc(len);
+//}
+//
+//pub fn TclResize(ptr: *u0, buf: []u8, buf_align: u29, new_len: usize, len_align: u29, ret_addr: usize) ?usize {
+//}
+//
+//pub fn TclFree(ptr: *u0, buf: []u8, buf_align: u29, ret_addr: usize) void {
+//}
+//
+//pub fn TclAllocator() std.mem.Allocator {
+//    return std.mem.Allocator.init(null, TclAlloc, TclResize, TclFree);
+//}

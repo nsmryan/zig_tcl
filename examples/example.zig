@@ -97,6 +97,9 @@ export fn Struct_TclCmd(cdata: zt.ClientData, interp: [*c]zt.Tcl_Interp, objc: c
         if (objc > 2) {
             s.enm = zt.GetFromObj(Enum, interp, objv[2]) catch return zt.TCL_ERROR;
         }
+
+        // NOTE NewObj is not used here, as it returns the integer value of the enum rather then
+        // the string.
         var found: bool = false;
         inline for (@typeInfo(Enum).Enum.fields) |field| {
             if (field.value == @enumToInt(s.enm)) {
