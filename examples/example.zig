@@ -9,9 +9,10 @@ const zt = @import("zigtcl");
 //});
 
 const Struct = struct {
+    bl: bool = false,
     int: c_int = 0,
     long: c_long = 0,
-    int64: u64 = 0,
+    wide: c_longlong = 0,
     zig_int: u8 = 0,
     string: [64]u8 = undefined,
     float: f32 = 0.0,
@@ -25,24 +26,29 @@ export fn Struct_TclCmd(cdata: zt.ClientData, interp: [*c]zt.Tcl_Interp, objc: c
     var name_length: c_int = undefined;
     const name = zt.Tcl_GetStringFromObj(objv[1], &name_length);
 
-    if (std.mem.eql(u8, std.mem.span(name), "int")) {
+    if (std.mem.eql(u8, std.mem.span(name), "bl")) {
+        if (objc > 2) {
+            s.bl = zt.GetFromObj(bool, interp, objv[2]) catch return zt.TCL_ERROR;
+        }
+        zt.Tcl_SetObjResult(interp, zt.Tcl_NewIntObj(@boolToInt(s.bl)));
+    } else if (std.mem.eql(u8, std.mem.span(name), "int")) {
         if (objc > 2) {
             s.int = zt.GetFromObj(c_int, interp, objv[2]) catch return zt.TCL_ERROR;
         }
         zt.Tcl_SetObjResult(interp, zt.Tcl_NewIntObj(s.int));
     } else if (std.mem.eql(u8, std.mem.span(name), "long")) {
         if (objc > 2) {
-            s.long = @intCast(c_long, zt.GetIntFromObj(interp, objv[2]) catch return zt.TCL_ERROR);
+            s.long = zt.GetFromObj(c_long, interp, objv[2]) catch return zt.TCL_ERROR;
         }
-        zt.Tcl_SetObjResult(interp, zt.Tcl_NewIntObj(s.long));
-    } else if (std.mem.eql(u8, std.mem.span(name), "int64")) {
+        zt.Tcl_SetObjResult(interp, zt.Tcl_NewLongObj(s.long));
+    } else if (std.mem.eql(u8, std.mem.span(name), "wide")) {
         if (objc > 2) {
-            s.int64 = @intCast(u64, zt.GetIntFromObj(interp, objv[2]) catch return zt.TCL_ERROR);
+            s.wide = zt.GetFromObj(c_longlong, interp, objv[2]) catch return zt.TCL_ERROR;
         }
-        zt.Tcl_SetObjResult(interp, zt.Tcl_NewIntObj(s.int64));
+        zt.Tcl_SetObjResult(interp, zt.Tcl_NewWideIntObj(s.wide));
     } else if (std.mem.eql(u8, std.mem.span(name), "zig_int")) {
         if (objc > 2) {
-            s.zig_int = @intCast(u8, zt.GetIntFromObj(interp, objv[2]) catch return zt.TCL_ERROR);
+            s.zig_int = zt.GetFromObj(u8, interp, objv[2]) catch return zt.TCL_ERROR;
         }
         zt.Tcl_SetObjResult(interp, zt.Tcl_NewIntObj(s.zig_int));
     } else if (std.mem.eql(u8, std.mem.span(name), "string")) {

@@ -86,7 +86,7 @@ pub fn GetIntFromObj(interp: Interp, obj: Obj) TclError!c_int {
 }
 
 // Tcl_GetLongFromObj wrapper
-pub fn GetLongFromObj(interp: Interp, obj: Obj) TclError!c_int {
+pub fn GetLongFromObj(interp: Interp, obj: Obj) TclError!c_long {
     var long: c_long = 0;
     const result = tcl.Tcl_GetLongFromObj(interp, obj, &long);
 
@@ -95,7 +95,7 @@ pub fn GetLongFromObj(interp: Interp, obj: Obj) TclError!c_int {
 }
 
 // Tcl_GetWideIntFromObj wrapper
-pub fn GetWideIntFromObj(interp: Interp, obj: Obj) TclError!c_int {
+pub fn GetWideIntFromObj(interp: Interp, obj: Obj) TclError!c_longlong {
     var wide: tcl.Tcl_WideInt = 0;
     const result = tcl.Tcl_GetWideIntFromObj(interp, obj, &wide);
 
@@ -146,11 +146,11 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) TclError!T {
 
         .Int => |info| {
             if (info.bits <= @bitSizeOf(c_int)) {
-                return GetIntFromObj(interp, obj);
+                return @intCast(T, try GetIntFromObj(interp, obj));
             } else if (info.bits <= @bitSizeOf(c_long)) {
-                return GetLongFromObj(interp, obj);
+                return @intCast(T, try GetLongFromObj(interp, obj));
             } else if (info.bits <= @bitSizeOf(tcl.Tcl_WideInt)) {
-                return GetWideIntFromObj(interp, obj);
+                return @intCast(T, try GetWideIntFromObj(interp, obj));
             } else {
                 @compileError("Int type too wide for a Tcl_WideInt!");
             }
