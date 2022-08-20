@@ -151,6 +151,8 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) TclError!T {
                 return GetLongFromObj(interp, obj);
             } else if (info.bits <= @bitSizeOf(tcl.Tcl_WideInt)) {
                 return GetWideIntFromObj(interp, obj);
+            } else {
+                @compileError("Int type too wide for a Tcl_WideInt!");
             }
         },
 

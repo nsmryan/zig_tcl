@@ -10,6 +10,8 @@ const zt = @import("zigtcl");
 
 const Struct = struct {
     int: c_int = 0,
+    long: c_long = 0,
+    int64: u64 = 0,
     zig_int: u8 = 0,
     string: [64]u8 = undefined,
     float: f32 = 0.0,
@@ -28,6 +30,16 @@ export fn Struct_TclCmd(cdata: zt.ClientData, interp: [*c]zt.Tcl_Interp, objc: c
             s.int = zt.GetFromObj(c_int, interp, objv[2]) catch return zt.TCL_ERROR;
         }
         zt.Tcl_SetObjResult(interp, zt.Tcl_NewIntObj(s.int));
+    } else if (std.mem.eql(u8, std.mem.span(name), "long")) {
+        if (objc > 2) {
+            s.long = @intCast(c_long, zt.GetIntFromObj(interp, objv[2]) catch return zt.TCL_ERROR);
+        }
+        zt.Tcl_SetObjResult(interp, zt.Tcl_NewIntObj(s.long));
+    } else if (std.mem.eql(u8, std.mem.span(name), "int64")) {
+        if (objc > 2) {
+            s.int64 = @intCast(u64, zt.GetIntFromObj(interp, objv[2]) catch return zt.TCL_ERROR);
+        }
+        zt.Tcl_SetObjResult(interp, zt.Tcl_NewIntObj(s.int64));
     } else if (std.mem.eql(u8, std.mem.span(name), "zig_int")) {
         if (objc > 2) {
             s.zig_int = @intCast(u8, zt.GetIntFromObj(interp, objv[2]) catch return zt.TCL_ERROR);
