@@ -1,6 +1,9 @@
 const std = @import("std");
 const testing = std.testing;
 
+const err = @import("err.zig");
+usingnamespace err;
+
 const tcl = @cImport({
     //@cDefine("USE_TCL_STUBS", "1");
     //@cInclude("c:/tcltk/include/tcl.h");
@@ -10,12 +13,12 @@ usingnamespace tcl;
 
 // TCL_OK is not represented as it is the result of a normal return.
 // NOTE it is not clear to me that return/break/continue need to be in here.
-pub const TclError = error{
-    TCL_ERROR,
-    TCL_RETURN,
-    TCL_BREAK,
-    TCL_CONTINUE,
-};
+//pub const TclError = error{
+//    TCL_ERROR,
+//    TCL_RETURN,
+//    TCL_BREAK,
+//    TCL_CONTINUE,
+//};
 
 // NOTES
 // create a command that is given a string name, and cdata is a pointer to an allocator,
@@ -41,87 +44,58 @@ pub const TclError = error{
 // They can define wrapped commands, and define struct wrappers for passing calls on to decls.
 // Maybe a wrapper for a pointer that just passes the cdata to the given function as well.
 
-pub const ZigTclCmd = fn (cdata: tcl.ClientData, interp: Interp, objv: []const [*c]tcl.Tcl_Obj) TclError!void;
-
-pub fn ZigTcl_HandleReturn(result: c_int) TclError!void {
-    if (result == tcl.TCL_ERROR) {
-        return TclError.TCL_ERROR;
-    } else if (result == tcl.TCL_RETURN) {
-        return TclError.TCL_RETURN;
-    } else if (result == tcl.TCL_BREAK) {
-        return TclError.TCL_BREAK;
-    } else if (result == tcl.TCL_CONTINUE) {
-        return TclError.TCL_CONTINUE;
-    }
-}
-
-pub fn ZigTcl_ErrorToInt(err: TclError) c_int {
-    switch (err) {
-        TclError.TCL_ERROR => return tcl.TCL_ERROR,
-        TclError.TCL_RETURN => return tcl.TCL_RETURN,
-        TclError.TCL_BREAK => return tcl.TCL_BREAK,
-        TclError.TCL_CONTINUE => return tcl.TCL_CONTINUE,
-    }
-}
-
-pub fn ZigTcl_TclResult(result: TclError!void) c_int {
-    if (result) {
-        return tcl.TCL_OK;
-    } else |err| {
-        return ZigTcl_ErrorToInt(err);
-    }
-}
+pub const ZigTclCmd = fn (cdata: tcl.ClientData, interp: Interp, objv: []const [*c]tcl.Tcl_Obj) err.TclError!void;
 
 pub fn ZigTcl_CallCmd(function: ZigTclCmd, cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) c_int {
-    return ZigTcl_TclResult(function(cdata, interp, objv[0..@intCast(usize, objc)]));
+    return err.ZigTcl_TclResult(function(cdata, interp, objv[0..@intCast(usize, objc)]));
 }
 
 ///Tcl_GetIntFromObj wrapper.
-pub fn GetIntFromObj(interp: Interp, obj: Obj) TclError!c_int {
+pub fn GetIntFromObj(interp: Interp, obj: Obj) err.TclError!c_int {
     var int: c_int = 0;
     const result = tcl.Tcl_GetIntFromObj(interp, obj, &int);
 
-    ZigTcl_HandleReturn(result) catch |err| return err;
+    err.ZigTcl_HandleReturn(result) catch |errValue| return errValue;
     return int;
 }
 
 // Tcl_GetLongFromObj wrapper
-pub fn GetLongFromObj(interp: Interp, obj: Obj) TclError!c_long {
+pub fn GetLongFromObj(interp: Interp, obj: Obj) err.TclError!c_long {
     var long: c_long = 0;
     const result = tcl.Tcl_GetLongFromObj(interp, obj, &long);
 
-    ZigTcl_HandleReturn(result) catch |err| return err;
+    err.ZigTcl_HandleReturn(result) catch |errValue| return errValue;
     return long;
 }
 
 // Tcl_GetWideIntFromObj wrapper
-pub fn GetWideIntFromObj(interp: Interp, obj: Obj) TclError!c_longlong {
+pub fn GetWideIntFromObj(interp: Interp, obj: Obj) err.TclError!c_longlong {
     var wide: tcl.Tcl_WideInt = 0;
     const result = tcl.Tcl_GetWideIntFromObj(interp, obj, &wide);
 
-    ZigTcl_HandleReturn(result) catch |err| return err;
+    err.ZigTcl_HandleReturn(result) catch |errValue| return errValue;
     return wide;
 }
 
 ///Tcl_GetDoubleFromObj wrapper.
-pub fn GetDoubleFromObj(interp: Interp, obj: Obj) TclError!f64 {
+pub fn GetDoubleFromObj(interp: Interp, obj: Obj) err.TclError!f64 {
     var int: f64 = 0;
     const result = tcl.Tcl_GetDoubleFromObj(interp, obj, &int);
 
-    ZigTcl_HandleReturn(result) catch |err| return err;
+    err.ZigTcl_HandleReturn(result) catch |errValue| return errValue;
     return int;
 }
 
-pub fn GetStringFromObj(obj: Obj) TclError![]const u8 {
+pub fn GetStringFromObj(obj: Obj) err.TclError![]const u8 {
     var length: c_int = undefined;
     const str = tcl.Tcl_GetStringFromObj(obj, &length);
     return str[0..@intCast(usize, length)];
 }
 
 /// Tcl_ListObjAppendElement wrapper.
-pub fn ListObjAppendElement(interp: tcl.Tcl_Interp, list: tcl.Tcl_Obj, obj: tcl.Tcl_Obj) TclError!void {
+pub fn ListObjAppendElement(interp: tcl.Tcl_Interp, list: tcl.Tcl_Obj, obj: tcl.Tcl_Obj) err.TclError!void {
     const result = tcl.Tcl_ListObjAppendElement(interp, list, obj);
-    return ZigTcl_HandleReturn(result);
+    return err.ZigTcl_HandleReturn(result);
 }
 
 /// Tcl_NewStringObj wrapper.
@@ -167,7 +141,7 @@ pub fn CreateObjCommand(interp: Interp, name: [*:0]const u8, function: ZigTclCmd
     return tcl.Tcl_CreateObjCommand(interp, name, Wrap_ZigCmd, @intToPtr(tcl.ClientData, @ptrToInt(function)), null);
 }
 
-pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) TclError!T {
+pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) err.TclError!T {
     switch (@typeInfo(T)) {
         .Bool => return (try GetIntFromObj(interp, obj)) != 0,
 
@@ -202,7 +176,7 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) TclError!T {
                 return enm;
             } else {
                 // TODO ideally return a more expressive error, and use in the obj result.
-                return TclError.TCL_ERROR;
+                return err.TclError.TCL_ERROR;
             }
         },
 
@@ -236,8 +210,8 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) TclError!T {
         //.Vector => |info| return comptime hasUniqueRepresentation(info.child) and
         //@sizeOf(T) == @sizeOf(info.child) * info.len,
 
-        // Fn may be convertable as a function pointer?
-        //.Fn,
+        // Fn may be convertable as a function pointer? This is untested.
+        .Fn => return @intToPtr(T, @intCast(usize, try GetWideIntFromObj(interp, obj))),
 
         // NOTE error set may be convertable
         //.ErrorSet,
@@ -254,7 +228,7 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) TclError!T {
     }
 }
 
-pub fn NewObj(value: anytype) TclError!Obj {
+pub fn NewObj(value: anytype) err.TclError!Obj {
     switch (@typeInfo(@TypeOf(value))) {
         .Bool => return tcl.Tcl_NewIntObj(@boolToInt(value)),
 
@@ -278,7 +252,7 @@ pub fn NewObj(value: anytype) TclError!Obj {
             //        return NewStringObj(field.name);
             //    }
             //}
-            //return TclError.TCL_ERROR;
+            //return err.TclError.TCL_ERROR;
         },
 
         .Pointer => {
