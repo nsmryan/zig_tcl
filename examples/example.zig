@@ -136,8 +136,8 @@ fn Hello_ZigTclCmd(cdata: zt.tcl.ClientData, interp: zt.Interp, objv: []const [*
     _ = result;
 }
 
-pub fn test_function(arg: u8) u8 {
-    return arg + 1;
+pub fn test_function(arg0: u8, arg1: u8) u32 {
+    return arg0 + arg1;
 }
 
 export fn Zigexample_Init(interp: zt.Interp) c_int {

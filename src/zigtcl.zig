@@ -58,8 +58,10 @@ usingnamespace tcl;
 //
 // The first is likely preferable as it does not require allocation, and the comptime restriction doesn't
 // seem all that bad for an extension, but I'm not positive.
-pub fn CreateFunctionWrapper(comptime function: anytype) type {
-    return struct {
+//
+// This implements the comptime wrapper concept.
+pub fn WrapFunction(comptime function: anytype, name: [*:0]const u8, outer_interp: obj.Interp) err.TclError!void {
+    const cmd = struct {
         pub fn cmd(cdata: tcl.ClientData, interp: obj.Interp, objv: []const [*c]tcl.Tcl_Obj) err.TclError!void {
             _ = cdata;
             var args: std.meta.ArgsTuple(@TypeOf(function)) = undefined;
@@ -75,11 +77,8 @@ pub fn CreateFunctionWrapper(comptime function: anytype) type {
 
             obj.SetObjResult(interp, try obj.NewObj(@call(.{}, function, args)));
         }
-    };
-}
-
-pub fn WrapFunction(comptime function: anytype, name: [*:0]const u8, interp: obj.Interp) err.TclError!void {
-    _ = obj.CreateObjCommand(interp, name, CreateFunctionWrapper(function).cmd);
+    }.cmd;
+    _ = obj.CreateObjCommand(outer_interp, name, cmd);
 }
 
 test "function tuples" {
