@@ -10,13 +10,6 @@ usingnamespace obj;
 pub const tcl = @import("tcl.zig");
 usingnamespace tcl;
 
-//const tcl = @cImport({
-//    //@cDefine("USE_TCL_STUBS", "1");
-//    //@cInclude("c:/tcltk/include/tcl.h");
-//    @cInclude("/usr/include/tcl.h");
-//});
-//usingnamespace tcl;
-
 // NOTES
 // create a command that is given a string name, and cdata is a pointer to an allocator,
 // and creates a command of that name. The new command's cdata is a pointer to a struct and an allocator.
@@ -41,6 +34,7 @@ usingnamespace tcl;
 // They can define wrapped commands, and define struct wrappers for passing calls on to decls.
 // Maybe a wrapper for a pointer that just passes the cdata to the given function as well.
 
+// TCL Allocator
 // Need to figure out allocators and how to wrap TCL's
 //pub fn TclAlloc(ptr: *u0, len: usize, ptr_align: u29, len_align: u29, ret_addr: usize) Error![]u8 {
 //    return tcl.Tcl_Alloc(len);
@@ -55,3 +49,51 @@ usingnamespace tcl;
 //pub fn TclAllocator() std.mem.Allocator {
 //    return std.mem.Allocator.init(null, TclAlloc, TclResize, TclFree);
 //}
+
+// NOTE there seem to be two possible designs here:
+// 1) try to pass a function at comptime, creating a function which calls this function, as a kind
+//   of comptime closure
+// 2) try to create a struct which has the user function as an argument. Allocate this struct,
+// either with tcl or a given allocator, and use it as cdata.
+//
+// The first is likely preferable as it does not require allocation, and the comptime restriction doesn't
+// seem all that bad for an extension, but I'm not positive.
+pub fn CreateFunctionWrapper(comptime function: anytype) type {
+    return struct {
+        pub fn cmd(cdata: tcl.ClientData, interp: obj.Interp, objv: []const [*c]tcl.Tcl_Obj) err.TclError!void {
+            _ = cdata;
+            var args: std.meta.ArgsTuple(@TypeOf(function)) = undefined;
+
+            if ((args.len + 1) != objv.len) {
+                return err.TclError.TCL_ERROR;
+            }
+
+            comptime var index = 0;
+            inline while (index < args.len) : (index += 1) {
+                args[index] = try obj.GetFromObj(@TypeOf(args[index]), interp, objv[index + 1]);
+            }
+
+            obj.SetObjResult(interp, try obj.NewObj(@call(.{}, function, args)));
+        }
+    };
+}
+
+pub fn WrapFunction(comptime function: anytype, name: [*:0]const u8, interp: obj.Interp) err.TclError!void {
+    _ = obj.CreateObjCommand(interp, name, CreateFunctionWrapper(function).cmd);
+}
+
+test "function tuples" {
+    const func = struct {
+        fn testIntFunction(first: u8, second: u16) u32 {
+            return (first + second);
+        }
+    }.testIntFunction;
+
+    var args: std.meta.ArgsTuple(@TypeOf(func)) = undefined;
+
+    comptime var index = 0;
+    inline while (index < args.len) : (index += 1) {
+        args[index] = std.mem.zeroes(@TypeOf(args[index]));
+    }
+    _ = @call(.{}, func, args);
+}

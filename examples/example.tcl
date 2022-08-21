@@ -24,6 +24,10 @@ proc runTests { } {
     set result [struct enm]
     if { $value != $result } { throw ZIGTCLINVALID "enm '$result' did not match '$value'"  }
 
+    set value 2
+    set result [zig_function 1]
+    if { $value != $result } { throw ZIGTCLINVALID "test function '$result' did not match '$value'"   }
+
     puts "Tests Passed!"
 }
 

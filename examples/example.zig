@@ -136,6 +136,10 @@ fn Hello_ZigTclCmd(cdata: zt.tcl.ClientData, interp: zt.Interp, objv: []const [*
     _ = result;
 }
 
+pub fn test_function(arg: u8) u8 {
+    return arg + 1;
+}
+
 export fn Zigexample_Init(interp: zt.Interp) c_int {
     //std.debug.print("\nStarting Zig TCL Test {d}\n", .{interp});
 
@@ -148,6 +152,8 @@ export fn Zigexample_Init(interp: zt.Interp) c_int {
     }
 
     _ = zt.CreateObjCommand(interp, "zigcreate", Hello_ZigTclCmd);
+
+    zt.WrapFunction(test_function, "zig_function", interp) catch return zt.tcl.TCL_ERROR;
 
     return zt.tcl.Tcl_PkgProvide(interp, "zigtcl", "0.1.0");
 }
