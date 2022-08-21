@@ -129,6 +129,27 @@ pub fn NewStringObj(str: []const u8) Obj {
     return tcl.Tcl_NewStringObj(str.ptr, @intCast(c_int, str.len));
 }
 
+/// Tcl_NewIntObj wrapper for all int types (Int, Long, WideInt).
+pub fn NewIntObj(value: anytype) Obj {
+    switch (@typeInfo(@TypeOf(value))) {
+        .Int => |info| {
+            if (info.bits <= @bitSizeOf(c_int)) {
+                return tcl.Tcl_NewIntObj(@intCast(c_int, value));
+            } else if (info.bits <= @bitSizeOf(c_long)) {
+                return tcl.Tcl_NewLongObj(@intCast(c_long, value));
+            } else if (info.bits <= @bitSizeOf(tcl.Tcl_WideInt)) {
+                return tcl.Tcl_NewWideObj(@intCast(c_longlong, value));
+            } else {
+                @compileError("Int type too wide for a Tcl_WideInt!");
+            }
+        },
+
+        else => {
+            @compileError("NewIntObj expects an integer type!");
+        },
+    }
+}
+
 pub const Interp = [*c]tcl.Tcl_Interp;
 //pub const ClientData = tcl.ClientData;
 pub const Obj = [*c]tcl.Tcl_Obj;
@@ -263,7 +284,10 @@ pub fn NewObj(value: anytype) TclError!Obj {
             //return TclError.TCL_ERROR;
         },
 
-        // NOTE add pointer type.
+        // NOTE untested
+        .Pointer => {
+            return NewIntObj(@ptrToInt(value));
+        },
 
         // NOTE for complex types, maybe allocate and return pointer obj.
         // There may be some design in which a string handle is return instead, and looked

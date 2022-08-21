@@ -92,7 +92,7 @@ export fn Struct_TclCmd(cdata: zt.ClientData, interp: [*c]zt.Tcl_Interp, objc: c
         if (objc > 2) {
             s.ptr = zt.GetFromObj(*u8, interp, objv[2]) catch return zt.TCL_ERROR;
         }
-        zt.Tcl_SetObjResult(interp, zt.Tcl_NewWideIntObj(@intCast(isize, @ptrToInt(s.ptr))));
+        zt.Tcl_SetObjResult(interp, zt.NewObj(s.ptr) catch return zt.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "enm")) {
         if (objc > 2) {
             s.enm = zt.GetFromObj(Enum, interp, objv[2]) catch return zt.TCL_ERROR;
