@@ -1,12 +1,7 @@
 const std = @import("std");
 const testing = std.testing;
 
-const tcl = @cImport({
-    //@cDefine("USE_TCL_STUBS", "1");
-    //@cInclude("c:/tcltk/include/tcl.h");
-    @cInclude("/usr/include/tcl.h");
-});
-usingnamespace tcl;
+const tcl = @import("tcl.zig");
 
 // TCL_OK is not represented as it is the result of a normal return.
 // NOTE it is not clear to me that return/break/continue need to be in here.

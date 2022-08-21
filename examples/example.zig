@@ -1,12 +1,7 @@
 const std = @import("std");
 const testing = std.testing;
 
-//usingnamespace @import("zigtcl");
 const zt = @import("zigtcl");
-//const tcl = @cImport({
-//    //@cDefine("USE_TCL_STUBS", "1");
-//    @cInclude("/usr/include/tcl.h");
-//});
 
 const Struct = struct {
     bl: bool = false,
@@ -26,7 +21,7 @@ const Enum = enum {
     E3,
 };
 
-export fn Struct_TclCmd(cdata: zt.ClientData, interp: [*c]zt.Tcl_Interp, objc: c_int, objv: [*c]const [*c]zt.Tcl_Obj) c_int {
+export fn Struct_TclCmd(cdata: zt.tcl.ClientData, interp: [*c]zt.tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]zt.tcl.Tcl_Obj) c_int {
     _ = objc;
 
     var s = @ptrCast(*Struct, @alignCast(@alignOf(Struct), cdata));
@@ -34,68 +29,68 @@ export fn Struct_TclCmd(cdata: zt.ClientData, interp: [*c]zt.Tcl_Interp, objc: c
     // If given no arguments, return a pointer to the value.
     if (objc == 1) {
         // I believe wide int should be long enough for a pointer on all platforms.
-        const ptr_obj = zt.Tcl_NewWideIntObj(@intCast(isize, @ptrToInt(cdata)));
-        const struct_copy = zt.GetFromObj(Struct, interp, ptr_obj) catch return zt.TCL_ERROR;
+        const ptr_obj = zt.tcl.Tcl_NewWideIntObj(@intCast(isize, @ptrToInt(cdata)));
+        const struct_copy = zt.GetFromObj(Struct, interp, ptr_obj) catch return zt.tcl.TCL_ERROR;
 
         std.testing.expect(std.meta.eql(s.*, struct_copy)) catch @panic("struct ptr copy did not work!");
 
-        zt.Tcl_SetObjResult(interp, ptr_obj);
-        return zt.TCL_OK;
+        zt.tcl.Tcl_SetObjResult(interp, ptr_obj);
+        return zt.tcl.TCL_OK;
     }
 
     var name_length: c_int = undefined;
-    const name = zt.Tcl_GetStringFromObj(objv[1], &name_length);
+    const name = zt.tcl.Tcl_GetStringFromObj(objv[1], &name_length);
 
     if (std.mem.eql(u8, std.mem.span(name), "bl")) {
         if (objc > 2) {
-            s.bl = zt.GetFromObj(bool, interp, objv[2]) catch return zt.TCL_ERROR;
+            s.bl = zt.GetFromObj(bool, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
-        zt.Tcl_SetObjResult(interp, zt.NewObj(s.bl) catch return zt.TCL_ERROR);
+        zt.tcl.Tcl_SetObjResult(interp, zt.NewObj(s.bl) catch return zt.tcl.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "int")) {
         if (objc > 2) {
-            s.int = zt.GetFromObj(c_int, interp, objv[2]) catch return zt.TCL_ERROR;
+            s.int = zt.GetFromObj(c_int, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
-        zt.Tcl_SetObjResult(interp, zt.NewObj(s.int) catch return zt.TCL_ERROR);
+        zt.tcl.Tcl_SetObjResult(interp, zt.NewObj(s.int) catch return zt.tcl.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "long")) {
         if (objc > 2) {
-            s.long = zt.GetFromObj(c_long, interp, objv[2]) catch return zt.TCL_ERROR;
+            s.long = zt.GetFromObj(c_long, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
-        zt.Tcl_SetObjResult(interp, zt.NewObj(s.long) catch return zt.TCL_ERROR);
+        zt.tcl.Tcl_SetObjResult(interp, zt.NewObj(s.long) catch return zt.tcl.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "wide")) {
         if (objc > 2) {
-            s.wide = zt.GetFromObj(c_longlong, interp, objv[2]) catch return zt.TCL_ERROR;
+            s.wide = zt.GetFromObj(c_longlong, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
-        zt.Tcl_SetObjResult(interp, zt.Tcl_NewWideIntObj(s.wide));
+        zt.tcl.Tcl_SetObjResult(interp, zt.NewIntObj(s.wide));
     } else if (std.mem.eql(u8, std.mem.span(name), "zig_int")) {
         if (objc > 2) {
-            s.zig_int = zt.GetFromObj(u8, interp, objv[2]) catch return zt.TCL_ERROR;
+            s.zig_int = zt.GetFromObj(u8, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
-        zt.Tcl_SetObjResult(interp, zt.NewObj(s.zig_int) catch return zt.TCL_ERROR);
+        zt.tcl.Tcl_SetObjResult(interp, zt.NewObj(s.zig_int) catch return zt.tcl.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "string")) {
         if (objc > 2) {
-            const str = zt.GetStringFromObj(objv[2]) catch return zt.TCL_ERROR;
+            const str = zt.GetStringFromObj(objv[2]) catch return zt.tcl.TCL_ERROR;
 
             if (str.len > s.string.len) {
-                return zt.TCL_ERROR;
+                return zt.tcl.TCL_ERROR;
             }
             std.mem.copy(u8, s.string[0..], str);
             const len = @intCast(usize, str.len);
             std.mem.set(u8, s.string[len..s.string.len], 0);
         }
-        zt.Tcl_SetObjResult(interp, zt.Tcl_NewStringObj(&s.string, s.string.len));
+        zt.tcl.Tcl_SetObjResult(interp, zt.NewStringObj(s.string[0..]));
     } else if (std.mem.eql(u8, std.mem.span(name), "float")) {
         if (objc > 2) {
-            s.float = zt.GetFromObj(f32, interp, objv[2]) catch return zt.TCL_ERROR;
+            s.float = zt.GetFromObj(f32, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
-        zt.Tcl_SetObjResult(interp, zt.NewObj(s.float) catch return zt.TCL_ERROR);
+        zt.tcl.Tcl_SetObjResult(interp, zt.NewObj(s.float) catch return zt.tcl.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "ptr")) {
         if (objc > 2) {
-            s.ptr = zt.GetFromObj(*u8, interp, objv[2]) catch return zt.TCL_ERROR;
+            s.ptr = zt.GetFromObj(*u8, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
-        zt.Tcl_SetObjResult(interp, zt.NewObj(s.ptr) catch return zt.TCL_ERROR);
+        zt.tcl.Tcl_SetObjResult(interp, zt.NewObj(s.ptr) catch return zt.tcl.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "enm")) {
         if (objc > 2) {
-            s.enm = zt.GetFromObj(Enum, interp, objv[2]) catch return zt.TCL_ERROR;
+            s.enm = zt.GetFromObj(Enum, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
 
         // NOTE NewObj is not used here, as it returns the integer value of the enum rather then
@@ -103,29 +98,29 @@ export fn Struct_TclCmd(cdata: zt.ClientData, interp: [*c]zt.Tcl_Interp, objc: c
         var found: bool = false;
         inline for (@typeInfo(Enum).Enum.fields) |field| {
             if (field.value == @enumToInt(s.enm)) {
-                zt.Tcl_SetObjResult(interp, zt.Tcl_NewWideIntObj(@intCast(isize, @enumToInt(s.enm))));
+                zt.tcl.Tcl_SetObjResult(interp, zt.NewIntObj(@enumToInt(s.enm)));
                 found = true;
                 break;
             }
         }
 
         if (!found) {
-            zt.Tcl_SetObjResult(interp, zt.NewStringObj("Enum field value not found"[0..]));
-            return zt.TCL_ERROR;
+            zt.tcl.Tcl_SetObjResult(interp, zt.NewStringObj("Enum field value not found"[0..]));
+            return zt.tcl.TCL_ERROR;
         }
     }
 
-    return zt.TCL_OK;
+    return zt.tcl.TCL_OK;
 }
 
-export fn StructFree_TclCmd(cdata: zt.ClientData) void {
+export fn StructFree_TclCmd(cdata: zt.tcl.ClientData) void {
     var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
     const gpa = general_purpose_allocator.allocator();
 
     gpa.destroy(@ptrCast(*Struct, @alignCast(@alignOf(Struct), cdata)));
 }
 
-fn Hello_ZigTclCmd(cdata: zt.ClientData, interp: zt.Interp, objv: []const [*c]zt.Tcl_Obj) zt.TclError!void {
+fn Hello_ZigTclCmd(cdata: zt.tcl.ClientData, interp: zt.Interp, objv: []const [*c]zt.tcl.Tcl_Obj) zt.TclError!void {
     _ = cdata;
 
     var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
@@ -134,9 +129,9 @@ fn Hello_ZigTclCmd(cdata: zt.ClientData, interp: zt.Interp, objv: []const [*c]zt
     var s: *Struct = gpa.create(Struct) catch return zt.TclError.TCL_ERROR;
 
     var length: c_int = undefined;
-    const name = zt.Tcl_GetStringFromObj(objv[1], &length);
+    const name = zt.tcl.Tcl_GetStringFromObj(objv[1], &length);
 
-    const result = zt.Tcl_CreateObjCommand(interp, name, Struct_TclCmd, @intToPtr(zt.ClientData, @ptrToInt(s)), StructFree_TclCmd);
+    const result = zt.tcl.Tcl_CreateObjCommand(interp, name, Struct_TclCmd, @intToPtr(zt.tcl.ClientData, @ptrToInt(s)), StructFree_TclCmd);
     _ = result;
 }
 
@@ -144,10 +139,10 @@ export fn Zigexample_Init(interp: zt.Interp) c_int {
     //std.debug.print("\nStarting Zig TCL Test {d}\n", .{interp});
 
     //var rc = zt.Tcl_InitStubs(interp, "8.6", 0);
-    var rc = zt.Tcl_PkgRequire(interp, "Tcl", "8.6", 0);
+    var rc = zt.tcl.Tcl_PkgRequire(interp, "Tcl", "8.6", 0);
     std.debug.print("\nInit result {s}\n", .{rc});
 
     _ = zt.CreateObjCommand(interp, "zigcreate", Hello_ZigTclCmd);
 
-    return zt.Tcl_PkgProvide(interp, "zigtcl", "0.1.0");
+    return zt.tcl.Tcl_PkgProvide(interp, "zigtcl", "0.1.0");
 }
