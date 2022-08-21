@@ -228,6 +228,7 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) TclError!T {
         // A pointer to a global static null object also doesn't work- it is identical to an integer.
         // Potentially this could be an actual pointer, null == 0, and we need to dereference for any
         // optional. This seems like a comprimise, but might work.
+        // Another option is a unique value of a new type.
 
         // NOTE error union may be convertable
 
@@ -235,9 +236,13 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) TclError!T {
         //.Vector => |info| return comptime hasUniqueRepresentation(info.child) and
         //@sizeOf(T) == @sizeOf(info.child) * info.len,
 
+        // Fn may be convertable as a function pointer?
+        //.Fn,
+
         // NOTE error set may be convertable
         //.ErrorSet,
-        //.Fn,
+
+        // These do not seem convertable.
         //.Frame,
         //.AnyFrame,
         //.EnumLiteral,
@@ -253,16 +258,8 @@ pub fn NewObj(value: anytype) TclError!Obj {
     switch (@typeInfo(@TypeOf(value))) {
         .Bool => return tcl.Tcl_NewIntObj(@boolToInt(value)),
 
-        .Int => |info| {
-            if (info.bits <= @bitSizeOf(c_int)) {
-                return tcl.Tcl_NewIntObj(@intCast(c_int, value));
-            } else if (info.bits <= @bitSizeOf(c_long)) {
-                return tcl.Tcl_NewLongObj(@intCast(c_long, value));
-            } else if (info.bits <= @bitSizeOf(tcl.Tcl_WideInt)) {
-                return tcl.Tcl_NewWideIntObj(@intCast(c_longlong, value));
-            } else {
-                @compileError("Int type too wide for a Tcl_WideInt!");
-            }
+        .Int => {
+            return NewIntObj(value);
         },
 
         .Float => |info| {
@@ -284,7 +281,6 @@ pub fn NewObj(value: anytype) TclError!Obj {
             //return TclError.TCL_ERROR;
         },
 
-        // NOTE untested
         .Pointer => {
             return NewIntObj(@ptrToInt(value));
         },
