@@ -59,6 +59,11 @@ pub fn NewStringObj(str: []const u8) Obj {
     return tcl.Tcl_NewStringObj(str.ptr, @intCast(c_int, str.len));
 }
 
+// Tcl_SetObjResult wrapper
+pub fn SetObjResult(interp: Interp, obj: Obj) void {
+    tcl.Tcl_SetObjResult(interp, obj);
+}
+
 /// Tcl_NewIntObj wrapper for all int types (Int, Long, WideInt).
 pub fn NewIntObj(value: anytype) Obj {
     switch (@typeInfo(@TypeOf(value))) {

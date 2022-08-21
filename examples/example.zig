@@ -34,7 +34,7 @@ export fn Struct_TclCmd(cdata: zt.tcl.ClientData, interp: [*c]zt.tcl.Tcl_Interp,
 
         std.testing.expect(std.meta.eql(s.*, struct_copy)) catch @panic("struct ptr copy did not work!");
 
-        zt.tcl.Tcl_SetObjResult(interp, ptr_obj);
+        zt.obj.SetObjResult(interp, ptr_obj);
         return zt.tcl.TCL_OK;
     }
 
@@ -45,27 +45,27 @@ export fn Struct_TclCmd(cdata: zt.tcl.ClientData, interp: [*c]zt.tcl.Tcl_Interp,
         if (objc > 2) {
             s.bl = zt.GetFromObj(bool, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
-        zt.tcl.Tcl_SetObjResult(interp, zt.NewObj(s.bl) catch return zt.tcl.TCL_ERROR);
+        zt.obj.SetObjResult(interp, zt.NewObj(s.bl) catch return zt.tcl.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "int")) {
         if (objc > 2) {
             s.int = zt.GetFromObj(c_int, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
-        zt.tcl.Tcl_SetObjResult(interp, zt.NewObj(s.int) catch return zt.tcl.TCL_ERROR);
+        zt.obj.SetObjResult(interp, zt.NewObj(s.int) catch return zt.tcl.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "long")) {
         if (objc > 2) {
             s.long = zt.GetFromObj(c_long, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
-        zt.tcl.Tcl_SetObjResult(interp, zt.NewObj(s.long) catch return zt.tcl.TCL_ERROR);
+        zt.obj.SetObjResult(interp, zt.NewObj(s.long) catch return zt.tcl.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "wide")) {
         if (objc > 2) {
             s.wide = zt.GetFromObj(c_longlong, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
-        zt.tcl.Tcl_SetObjResult(interp, zt.NewIntObj(s.wide));
+        zt.obj.SetObjResult(interp, zt.NewIntObj(s.wide));
     } else if (std.mem.eql(u8, std.mem.span(name), "zig_int")) {
         if (objc > 2) {
             s.zig_int = zt.GetFromObj(u8, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
-        zt.tcl.Tcl_SetObjResult(interp, zt.NewObj(s.zig_int) catch return zt.tcl.TCL_ERROR);
+        zt.obj.SetObjResult(interp, zt.NewObj(s.zig_int) catch return zt.tcl.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "string")) {
         if (objc > 2) {
             const str = zt.GetStringFromObj(objv[2]) catch return zt.tcl.TCL_ERROR;
@@ -77,17 +77,17 @@ export fn Struct_TclCmd(cdata: zt.tcl.ClientData, interp: [*c]zt.tcl.Tcl_Interp,
             const len = @intCast(usize, str.len);
             std.mem.set(u8, s.string[len..s.string.len], 0);
         }
-        zt.tcl.Tcl_SetObjResult(interp, zt.NewStringObj(s.string[0..]));
+        zt.obj.SetObjResult(interp, zt.NewStringObj(s.string[0..]));
     } else if (std.mem.eql(u8, std.mem.span(name), "float")) {
         if (objc > 2) {
             s.float = zt.GetFromObj(f32, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
-        zt.tcl.Tcl_SetObjResult(interp, zt.NewObj(s.float) catch return zt.tcl.TCL_ERROR);
+        zt.obj.SetObjResult(interp, zt.NewObj(s.float) catch return zt.tcl.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "ptr")) {
         if (objc > 2) {
             s.ptr = zt.GetFromObj(*u8, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
-        zt.tcl.Tcl_SetObjResult(interp, zt.NewObj(s.ptr) catch return zt.tcl.TCL_ERROR);
+        zt.obj.SetObjResult(interp, zt.NewObj(s.ptr) catch return zt.tcl.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "enm")) {
         if (objc > 2) {
             s.enm = zt.GetFromObj(Enum, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
@@ -98,14 +98,14 @@ export fn Struct_TclCmd(cdata: zt.tcl.ClientData, interp: [*c]zt.tcl.Tcl_Interp,
         var found: bool = false;
         inline for (@typeInfo(Enum).Enum.fields) |field| {
             if (field.value == @enumToInt(s.enm)) {
-                zt.tcl.Tcl_SetObjResult(interp, zt.NewIntObj(@enumToInt(s.enm)));
+                zt.obj.SetObjResult(interp, zt.NewIntObj(@enumToInt(s.enm)));
                 found = true;
                 break;
             }
         }
 
         if (!found) {
-            zt.tcl.Tcl_SetObjResult(interp, zt.NewStringObj("Enum field value not found"[0..]));
+            zt.obj.SetObjResult(interp, zt.NewStringObj("Enum field value not found"[0..]));
             return zt.tcl.TCL_ERROR;
         }
     }
