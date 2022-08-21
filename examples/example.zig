@@ -151,9 +151,9 @@ export fn Zigexample_Init(interp: zt.Interp) c_int {
         std.debug.print("\nInit result {s}\n", .{rc});
     }
 
-    _ = zt.CreateObjCommand(interp, "zigcreate", Hello_ZigTclCmd);
+    _ = zt.CreateObjCommand(interp, "zigtcl::zigcreate", Hello_ZigTclCmd);
 
-    zt.WrapFunction(test_function, "zig_function", interp) catch return zt.tcl.TCL_ERROR;
+    zt.WrapFunction(test_function, "zigtcl::zig_function", interp) catch return zt.tcl.TCL_ERROR;
 
     return zt.tcl.Tcl_PkgProvide(interp, "zigtcl", "0.1.0");
 }
