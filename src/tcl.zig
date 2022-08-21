@@ -1,5 +1,9 @@
+const builtin = @import("builtin");
+
 const tcl = @cImport({
-    //@cDefine("USE_TCL_STUBS", "1");
+    if (builtin.os.tag != .windows) {
+        @cDefine("USE_TCL_STUBS", "1");
+    }
     //@cInclude("c:/tcltk/include/tcl.h");
     @cInclude("/usr/include/tcl.h");
 });

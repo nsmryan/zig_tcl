@@ -1,5 +1,6 @@
 const std = @import("std");
 const testing = std.testing;
+const builtin = @import("builtin");
 
 const zt = @import("zigtcl");
 
@@ -29,7 +30,7 @@ export fn Struct_TclCmd(cdata: zt.tcl.ClientData, interp: [*c]zt.tcl.Tcl_Interp,
     // If given no arguments, return a pointer to the value.
     if (objc == 1) {
         // I believe wide int should be long enough for a pointer on all platforms.
-        const ptr_obj = zt.tcl.Tcl_NewWideIntObj(@intCast(isize, @ptrToInt(cdata)));
+        const ptr_obj = zt.obj.NewObj(@ptrToInt(cdata)) catch return zt.tcl.TCL_ERROR;
         const struct_copy = zt.GetFromObj(Struct, interp, ptr_obj) catch return zt.tcl.TCL_ERROR;
 
         std.testing.expect(std.meta.eql(s.*, struct_copy)) catch @panic("struct ptr copy did not work!");
@@ -138,9 +139,13 @@ fn Hello_ZigTclCmd(cdata: zt.tcl.ClientData, interp: zt.Interp, objv: []const [*
 export fn Zigexample_Init(interp: zt.Interp) c_int {
     //std.debug.print("\nStarting Zig TCL Test {d}\n", .{interp});
 
-    //var rc = zt.Tcl_InitStubs(interp, "8.6", 0);
-    var rc = zt.tcl.Tcl_PkgRequire(interp, "Tcl", "8.6", 0);
-    std.debug.print("\nInit result {s}\n", .{rc});
+    if (builtin.os.tag != .windows) {
+        var rc = zt.tcl.Tcl_InitStubs(interp, "8.6", 0);
+        std.debug.print("\nInit result {s}\n", .{rc});
+    } else {
+        var rc = zt.tcl.Tcl_PkgRequire(interp, "Tcl", "8.6", 0);
+        std.debug.print("\nInit result {s}\n", .{rc});
+    }
 
     _ = zt.CreateObjCommand(interp, "zigcreate", Hello_ZigTclCmd);
 

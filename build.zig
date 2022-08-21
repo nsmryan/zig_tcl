@@ -24,9 +24,9 @@ pub fn build(b: *std.build.Builder) void {
     } else {
         lib.addLibPath("/usr/lib");
         lib.addIncludeDir("/usr/include");
-        // TODO try building with stubs on Linux- much more likely to work.
-        lib.linkSystemLibraryName("tcl8.6");
-        //lib.linkSystemLibraryName("tclstub8.6");
+        // On Linux build with stubs.
+        //lib.linkSystemLibraryName("tcl8.6");
+        lib.linkSystemLibraryName("tclstub8.6");
     }
     lib.addPackagePath("zigtcl", "src/zigtcl.zig");
 
