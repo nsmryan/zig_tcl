@@ -75,7 +75,8 @@ pub fn WrapFunction(comptime function: anytype, name: [*:0]const u8, outer_inter
                 args[index] = try obj.GetFromObj(@TypeOf(args[index]), interp, objv[index + 1]);
             }
 
-            obj.SetObjResult(interp, try obj.NewObj(@call(.{}, function, args)));
+            //obj.SetObjResult(interp, try obj.NewObj(@call(.{}, function, args)));
+            return CallZigFunction(function, interp, args);
         }
     }.cmd;
     _ = obj.CreateObjCommand(outer_interp, name, cmd);
@@ -110,6 +111,10 @@ pub fn WrapDecl(comptime function: anytype, interp: obj.Interp, cdata: tcl.Clien
         args[index] = try obj.GetFromObj(@TypeOf(args[index]), interp, objv[index + 1]);
     }
 
+    return CallZigFunction(function, interp, args);
+}
+
+pub fn CallZigFunction(comptime function: anytype, interp: obj.Interp, args: anytype) err.TclError!void {
     const func_info = @typeInfo(@TypeOf(function));
     if (func_info.Fn.return_type) |typ| {
         // If the function has a return value, check if it is an error.
