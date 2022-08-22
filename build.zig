@@ -11,6 +11,10 @@ pub fn build(b: *std.build.Builder) void {
     lib.setBuildMode(mode);
     lib.linkLibC();
 
+    const main_tests = b.addTest("src/zigtcl.zig");
+    main_tests.setBuildMode(mode);
+    main_tests.linkLibC();
+
     if (builtin.os.tag == .windows) {
         lib.addLibPath("c:/tcltk/bin");
         lib.addLibPath("c:/tcltk/lib");
@@ -27,14 +31,14 @@ pub fn build(b: *std.build.Builder) void {
         // On Linux build with stubs.
         //lib.linkSystemLibraryName("tcl8.6");
         lib.linkSystemLibraryName("tclstub8.6");
+
+        // The tests link TCL directly, as we are not building an extension.
+        main_tests.addIncludeDir("/usr/include");
+        main_tests.linkSystemLibraryName("tcl8.6");
     }
     lib.addPackagePath("zigtcl", "src/zigtcl.zig");
 
     lib.install();
-
-    const main_tests = b.addTest("src/zigtcl.zig");
-    main_tests.setBuildMode(mode);
-    main_tests.linkLibC();
 
     const test_step = b.step("test", "Run library tests");
     test_step.dependOn(&main_tests.step);

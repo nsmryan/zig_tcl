@@ -81,6 +81,37 @@ pub fn WrapFunction(comptime function: anytype, name: [*:0]const u8, outer_inter
     _ = obj.CreateObjCommand(outer_interp, name, cmd);
 }
 
+// Wrap a declaration taking a pointer to self as the first argument.
+// The 'self' pointer comes from cdata, rather then getting passed in with objv.
+// NOTE this is untested! make a decl in the example, register it, and try.
+// TODO modify this to call the function, rather then register it. This is for decls, which will
+// be called in a registered function, not registered themselves this way.
+pub fn WrapDecl(comptime function: anytype, name: [*:0]const u8, outer_interp: obj.Interp) err.TclError!void {
+    const cmd = struct {
+        pub fn cmd(cdata: tcl.ClientData, interp: obj.Interp, objv: []const [*c]tcl.Tcl_Obj) err.TclError!void {
+            _ = cdata;
+            var args: std.meta.ArgsTuple(@TypeOf(function)) = undefined;
+
+            if ((args.len + 2) != objv.len) {
+                return err.TclError.TCL_ERROR;
+            }
+
+            // Fill in the first argument using cdata.
+            // NOTE this assumes a pointer for now- perhaps a 'self' that is not a pointer
+            // could also be supported.
+            args[0] = @ptrCast(@typeInfo(@TypeOf(function)).Fn.args[0].arg_type.?, cdata);
+
+            comptime var index = 1;
+            inline while (index < args.len) : (index += 1) {
+                args[index] = try obj.GetFromObj(@TypeOf(args[index]), interp, objv[index + 1]);
+            }
+
+            obj.SetObjResult(interp, try obj.NewObj(@call(.{}, function, args)));
+        }
+    }.cmd;
+    _ = obj.CreateObjCommand(outer_interp, name, cmd);
+}
+
 test "function tuples" {
     const func = struct {
         fn testIntFunction(first: u8, second: u16) u32 {
@@ -95,4 +126,24 @@ test "function tuples" {
         args[index] = std.mem.zeroes(@TypeOf(args[index]));
     }
     _ = @call(.{}, func, args);
+}
+
+test "int objs" {
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    {
+        const int: u8 = 0xFF;
+        try std.testing.expectEqual(int, try obj.GetFromObj(u8, interp, try obj.NewObj(int)));
+    }
+
+    {
+        const int: u16 = 0xFFFF;
+        try std.testing.expectEqual(int, try obj.GetFromObj(u16, interp, try obj.NewObj(int)));
+    }
+
+    {
+        const int: u32 = 0xFFFFFFFF;
+        try std.testing.expectEqual(int, try obj.GetFromObj(u32, interp, try obj.NewObj(int)));
+    }
 }
