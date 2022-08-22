@@ -225,6 +225,12 @@ pub fn NewObj(value: anytype) err.TclError!Obj {
             return NewIntObj(@ptrToInt(value));
         },
 
+        // Void results in an empty TCL object.
+        .Void => {
+            // NOTE most likely should check for null result and report allocation error here.
+            return tcl.Tcl_NewObj();
+        },
+
         // NOTE for complex types, maybe allocate and return pointer obj.
         // There may be some design in which a string handle is return instead, and looked
         // up within the extension. This may be safer?

@@ -31,6 +31,17 @@ proc runTests { } {
     set result [zigtcl::zig_function 1 2]
     if { $value != $result } { throw ZIGTCLINVALID "test function '$result' did not match '$value'"   }
 
+    struct bl 0
+    struct decl1
+    set value 1
+    set result [struct bl]
+    if { $value != $result } { throw ZIGTCLINVALID "decl1 '$result' did not match '$value'"   }
+
+    struct decl2 100
+    set value 100
+    set result [struct int]
+    if { $value != $result } { throw ZIGTCLINVALID "decl2 '$result' did not match '$value'"   }
+
     puts "Tests Passed!"
 }
 

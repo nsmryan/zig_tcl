@@ -14,6 +14,14 @@ const Struct = struct {
     float: f32 = 0.0,
     ptr: *u8 = undefined,
     enm: Enum,
+
+    pub fn decl1(s: *Struct) void {
+        s.bl = !s.bl;
+    }
+
+    pub fn decl2(s: *Struct, arg: c_int) void {
+        s.int = arg;
+    }
 };
 
 const Enum = enum {
@@ -42,7 +50,11 @@ export fn Struct_TclCmd(cdata: zt.tcl.ClientData, interp: [*c]zt.tcl.Tcl_Interp,
     var name_length: c_int = undefined;
     const name = zt.tcl.Tcl_GetStringFromObj(objv[1], &name_length);
 
-    if (std.mem.eql(u8, std.mem.span(name), "bl")) {
+    if (std.mem.eql(u8, std.mem.span(name), "decl1")) {
+        zt.WrapDecl(Struct.decl1, interp, cdata, objc, objv) catch return zt.tcl.TCL_ERROR;
+    } else if (std.mem.eql(u8, std.mem.span(name), "decl2")) {
+        zt.WrapDecl(Struct.decl2, interp, cdata, objc, objv) catch return zt.tcl.TCL_ERROR;
+    } else if (std.mem.eql(u8, std.mem.span(name), "bl")) {
         if (objc > 2) {
             s.bl = zt.GetFromObj(bool, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
