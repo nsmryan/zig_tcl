@@ -263,3 +263,29 @@ test "union objs" {
     const un_value: un = .{ .flt = 0.1 };
     try std.testing.expectEqual(un_value, try obj.GetFromObj(un, interp, try obj.NewObj(&un_value)));
 }
+
+test "struct objs" {
+    const strt = struct {
+        flt: f32,
+        int: u64,
+    };
+
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    const strt_value: strt = .{ .flt = 0.1, .int = 1 };
+    try std.testing.expectEqual(strt_value, try obj.GetFromObj(strt, interp, try obj.NewObj(&strt_value)));
+}
+
+test "fn obj" {
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    const func = struct {
+        fn test_func(arg: u8) u8 {
+            return arg + 1;
+        }
+    }.test_func;
+
+    try std.testing.expectEqual(func, try obj.GetFromObj(fn (u8) u8, interp, try obj.NewObj(func)));
+}
