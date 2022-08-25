@@ -171,7 +171,6 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) err.TclError!T {
             return ptr.*;
         },
 
-        // NOTE untested
         .Union => {
             const ptr = @intToPtr(*T, @intCast(usize, try GetWideIntFromObj(interp, obj)));
             return ptr.*;

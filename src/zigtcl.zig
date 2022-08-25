@@ -289,3 +289,12 @@ test "fn obj" {
 
     try std.testing.expectEqual(func, try obj.GetFromObj(fn (u8) u8, interp, try obj.NewObj(func)));
 }
+
+test "ptr obj" {
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    var value: u8 = 255;
+
+    try std.testing.expectEqual(&value, try obj.GetFromObj(*u8, interp, try obj.NewObj(&value)));
+}
