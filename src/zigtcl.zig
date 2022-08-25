@@ -75,7 +75,6 @@ pub fn WrapFunction(comptime function: anytype, name: [*:0]const u8, outer_inter
                 args[index] = try obj.GetFromObj(@TypeOf(args[index]), interp, objv[index + 1]);
             }
 
-            //obj.SetObjResult(interp, try obj.NewObj(@call(.{}, function, args)));
             return CallZigFunction(function, interp, args);
         }
     }.cmd;
@@ -162,22 +161,52 @@ test "function tuples" {
     _ = @call(.{}, func, args);
 }
 
+test "uint objs" {
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    {
+        const int: u8 = std.math.maxInt(u8);
+        try std.testing.expectEqual(int, try obj.GetFromObj(u8, interp, try obj.NewObj(int)));
+    }
+
+    {
+        const int: u16 = std.math.maxInt(u16);
+        try std.testing.expectEqual(int, try obj.GetFromObj(u16, interp, try obj.NewObj(int)));
+    }
+
+    {
+        const int: u32 = std.math.maxInt(u32);
+        try std.testing.expectEqual(int, try obj.GetFromObj(u32, interp, try obj.NewObj(int)));
+    }
+
+    {
+        const int: u64 = std.math.maxInt(u64);
+        try std.testing.expectEqual(int, try obj.GetFromObj(u64, interp, try obj.NewObj(int)));
+    }
+}
+
 test "int objs" {
     var interp = tcl.Tcl_CreateInterp();
     defer tcl.Tcl_DeleteInterp(interp);
 
     {
-        const int: u8 = 0xFF;
-        try std.testing.expectEqual(int, try obj.GetFromObj(u8, interp, try obj.NewObj(int)));
+        const int: i8 = std.math.minInt(i8);
+        try std.testing.expectEqual(int, try obj.GetFromObj(i8, interp, try obj.NewObj(int)));
     }
 
     {
-        const int: u16 = 0xFFFF;
-        try std.testing.expectEqual(int, try obj.GetFromObj(u16, interp, try obj.NewObj(int)));
+        const int: i16 = std.math.minInt(i16);
+        try std.testing.expectEqual(int, try obj.GetFromObj(i16, interp, try obj.NewObj(int)));
     }
 
     {
-        const int: u32 = 0xFFFFFFFF;
-        try std.testing.expectEqual(int, try obj.GetFromObj(u32, interp, try obj.NewObj(int)));
+        const int: i32 = std.math.minInt(i32);
+        try std.testing.expectEqual(int, try obj.GetFromObj(i32, interp, try obj.NewObj(int)));
+    }
+
+    {
+        const int: i64 = std.math.minInt(i64);
+        try std.testing.expectEqual(int, try obj.GetFromObj(i64, interp, try obj.NewObj(int)));
     }
 }

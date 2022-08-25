@@ -68,15 +68,25 @@ pub fn SetObjResult(interp: Interp, obj: Obj) void {
 pub fn NewIntObj(value: anytype) Obj {
     switch (@typeInfo(@TypeOf(value))) {
         .Int => |info| {
-            if (info.bits <= @bitSizeOf(c_int)) {
+            if (info.bits < @bitSizeOf(c_int)) {
                 return tcl.Tcl_NewIntObj(@intCast(c_int, value));
-            } else if (info.bits <= @bitSizeOf(c_long)) {
+            } else if (info.bits == @bitSizeOf(c_int)) {
+                return tcl.Tcl_NewIntObj(@bitCast(c_int, value));
+            } else if (info.bits < @bitSizeOf(c_long)) {
                 return tcl.Tcl_NewLongObj(@intCast(c_long, value));
-            } else if (info.bits <= @bitSizeOf(tcl.Tcl_WideInt)) {
-                return tcl.Tcl_NewWideObj(@intCast(c_longlong, value));
+            } else if (info.bits == @bitSizeOf(c_long)) {
+                return tcl.Tcl_NewLongObj(@bitCast(c_long, value));
+            } else if (info.bits < @bitSizeOf(tcl.Tcl_WideInt)) {
+                return tcl.Tcl_NewWideObj(@intCast(tcl.Tcl_WideInt, value));
+            } else if (info.bits == @bitSizeOf(tcl.Tcl_WideInt)) {
+                return tcl.Tcl_NewWideObj(@bitCast(tcl.Tcl_WideInt, value));
             } else {
                 @compileError("Int type too wide for a Tcl_WideInt!");
             }
+        },
+
+        .ComptimeInt => {
+            @compileError("Integer must not be comptime! It must have a specific runtime type");
         },
 
         else => {
@@ -112,12 +122,18 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) err.TclError!T {
         .Bool => return (try GetIntFromObj(interp, obj)) != 0,
 
         .Int => |info| {
-            if (info.bits <= @bitSizeOf(c_int)) {
+            if (info.bits < @bitSizeOf(c_int)) {
                 return @intCast(T, try GetIntFromObj(interp, obj));
-            } else if (info.bits <= @bitSizeOf(c_long)) {
+            } else if (info.bits == @bitSizeOf(c_int)) {
+                return @bitCast(T, try GetIntFromObj(interp, obj));
+            } else if (info.bits < @bitSizeOf(c_long)) {
                 return @intCast(T, try GetLongFromObj(interp, obj));
-            } else if (info.bits <= @bitSizeOf(tcl.Tcl_WideInt)) {
+            } else if (info.bits == @bitSizeOf(c_long)) {
+                return @bitCast(T, try GetLongFromObj(interp, obj));
+            } else if (info.bits < @bitSizeOf(tcl.Tcl_WideInt)) {
                 return @intCast(T, try GetWideIntFromObj(interp, obj));
+            } else if (info.bits == @bitSizeOf(tcl.Tcl_WideInt)) {
+                return @bitCast(T, try GetWideIntFromObj(interp, obj));
             } else {
                 @compileError("Int type too wide for a Tcl_WideInt!");
             }
