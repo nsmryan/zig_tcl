@@ -150,19 +150,22 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) err.TclError!T {
 
         .Pointer => return @intToPtr(T, @intCast(usize, try GetWideIntFromObj(interp, obj))),
 
-        // NOTE ideally we could first check for strings, then fall back to integers, to allow
-        // either to be passed between TCL and Zig.
+        // NOTE This implementation may result in more work then necessary! I'm not sure that it actually shimmers
+        // the enum, but by using it as a string, the string of the integer representation will be constructed and
+        // matched. Unforunately there is not way to know that an object is an integer that I know of, except perhaps
+        // by inspecting its internals. The other option is to register some Zig specific types that have a fixed
+        // internal representation, perhaps with both a pointer to a (static) string and an integer value.
         .Enum => {
             const str = try GetStringFromObj(obj);
             if (std.meta.stringToEnum(T, str)) |enm| {
                 return enm;
             } else {
-                // TODO ideally return a more expressive error, and use in the obj result.
-                return err.TclError.TCL_ERROR;
+                return @intToEnum(T, try GetIntFromObj(interp, obj));
             }
         },
 
-        // NOTE untested
+        // This may not be the only way to do this. Passing pointers to TCL like this is not generally
+        // a good idea. A similar comment applies to Union and Struct.
         .Array => {
             const ptr = @intToPtr(*T, @intCast(usize, try GetWideIntFromObj(interp, obj)));
             return ptr.*;
@@ -227,7 +230,7 @@ pub fn NewObj(value: anytype) err.TclError!Obj {
         },
 
         .Enum => {
-            return NewIntObj(value);
+            return NewIntObj(@enumToInt(value));
             // NOTE this finds the string instead of the integer.
             //inline for (std.meta.fields(@Type(value))) |field| {
             //    if (field.value == value) {

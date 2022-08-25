@@ -230,3 +230,36 @@ test "float objs" {
     const dbl: f64 = std.math.f64_max;
     try std.testing.expectEqual(dbl, try obj.GetFromObj(f64, interp, try obj.NewObj(dbl)));
 }
+
+test "enum objs" {
+    const enm = enum {
+        A,
+    };
+
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    const enm_value: enm = .A;
+    try std.testing.expectEqual(enm_value, try obj.GetFromObj(enm, interp, try obj.NewObj(enm_value)));
+}
+
+test "array objs" {
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    const arr: [3]u8 = .{ 1, 2, 3 };
+    try std.testing.expectEqual(arr, try obj.GetFromObj([3]u8, interp, try obj.NewObj(&arr)));
+}
+
+test "union objs" {
+    const un = union(enum) {
+        flt: f32,
+        int: u64,
+    };
+
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    const un_value: un = .{ .flt = 0.1 };
+    try std.testing.expectEqual(un_value, try obj.GetFromObj(un, interp, try obj.NewObj(&un_value)));
+}
