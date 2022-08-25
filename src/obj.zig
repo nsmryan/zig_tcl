@@ -111,6 +111,7 @@ pub export fn Wrap_ZigCmd(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, obj
     var function = @ptrCast(ZigTclCmd, cdata);
     return ZigTcl_CallCmd(function, cdata, interp, objc, objv);
 }
+
 /// Create a new TCL command that executes a Zig function.
 /// The Zig function is given using the ziggy ZigTclCmd signature.
 pub fn CreateObjCommand(interp: Interp, name: [*:0]const u8, function: ZigTclCmd) tcl.Tcl_Command {
@@ -137,6 +138,10 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) err.TclError!T {
             } else {
                 @compileError("Int type too wide for a Tcl_WideInt!");
             }
+        },
+
+        .Void => {
+            return;
         },
 
         .Float => |info| {
@@ -277,3 +282,141 @@ pub fn NewObj(value: anytype) err.TclError!Obj {
 //pub fn TclAllocator() std.mem.Allocator {
 //    return std.mem.Allocator.init(null, TclAlloc, TclResize, TclFree);
 //}
+
+test "uint objs" {
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    {
+        const int: u8 = std.math.maxInt(u8);
+        try std.testing.expectEqual(int, try GetFromObj(u8, interp, try NewObj(int)));
+    }
+
+    {
+        const int: u16 = std.math.maxInt(u16);
+        try std.testing.expectEqual(int, try GetFromObj(u16, interp, try NewObj(int)));
+    }
+
+    {
+        const int: u32 = std.math.maxInt(u32);
+        try std.testing.expectEqual(int, try GetFromObj(u32, interp, try NewObj(int)));
+    }
+
+    {
+        const int: u64 = std.math.maxInt(u64);
+        try std.testing.expectEqual(int, try GetFromObj(u64, interp, try NewObj(int)));
+    }
+}
+
+test "int objs" {
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    {
+        const int: i8 = std.math.minInt(i8);
+        try std.testing.expectEqual(int, try GetFromObj(i8, interp, try NewObj(int)));
+    }
+
+    {
+        const int: i16 = std.math.minInt(i16);
+        try std.testing.expectEqual(int, try GetFromObj(i16, interp, try NewObj(int)));
+    }
+
+    {
+        const int: i32 = std.math.minInt(i32);
+        try std.testing.expectEqual(int, try GetFromObj(i32, interp, try NewObj(int)));
+    }
+
+    {
+        const int: i64 = std.math.minInt(i64);
+        try std.testing.expectEqual(int, try GetFromObj(i64, interp, try NewObj(int)));
+    }
+}
+
+test "bool objs" {
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+    var bl: bool = true;
+    try std.testing.expectEqual(bl, try GetFromObj(bool, interp, try NewObj(bl)));
+    bl = false;
+    try std.testing.expectEqual(bl, try GetFromObj(bool, interp, try NewObj(bl)));
+}
+
+test "float objs" {
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    const flt: f32 = std.math.f32_max;
+    try std.testing.expectEqual(flt, try GetFromObj(f32, interp, try NewObj(flt)));
+
+    const dbl: f64 = std.math.f64_max;
+    try std.testing.expectEqual(dbl, try GetFromObj(f64, interp, try NewObj(dbl)));
+}
+
+test "enum objs" {
+    const enm = enum {
+        A,
+    };
+
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    const enm_value: enm = .A;
+    try std.testing.expectEqual(enm_value, try GetFromObj(enm, interp, try NewObj(enm_value)));
+}
+
+test "array objs" {
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    const arr: [3]u8 = .{ 1, 2, 3 };
+    try std.testing.expectEqual(arr, try GetFromObj([3]u8, interp, try NewObj(&arr)));
+}
+
+test "union objs" {
+    const un = union(enum) {
+        flt: f32,
+        int: u64,
+    };
+
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    const un_value: un = .{ .flt = 0.1 };
+    try std.testing.expectEqual(un_value, try GetFromObj(un, interp, try NewObj(&un_value)));
+}
+
+test "struct objs" {
+    const strt = struct {
+        flt: f32,
+        int: u64,
+    };
+
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    const strt_value: strt = .{ .flt = 0.1, .int = 1 };
+    try std.testing.expectEqual(strt_value, try GetFromObj(strt, interp, try NewObj(&strt_value)));
+}
+
+test "fn obj" {
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    const func = struct {
+        fn test_func(arg: u8) u8 {
+            return arg + 1;
+        }
+    }.test_func;
+
+    try std.testing.expectEqual(func, try GetFromObj(fn (u8) u8, interp, try NewObj(func)));
+}
+
+test "ptr obj" {
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    var value: u8 = 255;
+
+    try std.testing.expectEqual(&value, try GetFromObj(*u8, interp, try NewObj(&value)));
+}

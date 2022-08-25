@@ -136,7 +136,7 @@ pub fn CallZigFunction(comptime function: anytype, interp: obj.Interp, args: any
                 };
             }
         } else {
-            // If not, just call and convert result to a TCL object.
+            // If no error return, just call and convert result to a TCL object.
             obj.SetObjResult(interp, try obj.NewObj(@call(.{}, function, args)));
         }
     } else {
@@ -145,156 +145,30 @@ pub fn CallZigFunction(comptime function: anytype, interp: obj.Interp, args: any
     }
 }
 
-test "function tuples" {
+test "call zig function with return" {
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
     const func = struct {
         fn testIntFunction(first: u8, second: u16) u32 {
             return (first + second);
         }
     }.testIntFunction;
 
-    var args: std.meta.ArgsTuple(@TypeOf(func)) = undefined;
-
-    comptime var index = 0;
-    inline while (index < args.len) : (index += 1) {
-        args[index] = std.mem.zeroes(@TypeOf(args[index]));
-    }
-    _ = @call(.{}, func, args);
+    try CallZigFunction(func, interp, .{ 1, 2 });
+    try std.testing.expectEqual(@as(u32, 3), try obj.GetFromObj(u32, interp, tcl.Tcl_GetObjResult(interp)));
 }
 
-test "uint objs" {
-    var interp = tcl.Tcl_CreateInterp();
-    defer tcl.Tcl_DeleteInterp(interp);
-
-    {
-        const int: u8 = std.math.maxInt(u8);
-        try std.testing.expectEqual(int, try obj.GetFromObj(u8, interp, try obj.NewObj(int)));
-    }
-
-    {
-        const int: u16 = std.math.maxInt(u16);
-        try std.testing.expectEqual(int, try obj.GetFromObj(u16, interp, try obj.NewObj(int)));
-    }
-
-    {
-        const int: u32 = std.math.maxInt(u32);
-        try std.testing.expectEqual(int, try obj.GetFromObj(u32, interp, try obj.NewObj(int)));
-    }
-
-    {
-        const int: u64 = std.math.maxInt(u64);
-        try std.testing.expectEqual(int, try obj.GetFromObj(u64, interp, try obj.NewObj(int)));
-    }
-}
-
-test "int objs" {
-    var interp = tcl.Tcl_CreateInterp();
-    defer tcl.Tcl_DeleteInterp(interp);
-
-    {
-        const int: i8 = std.math.minInt(i8);
-        try std.testing.expectEqual(int, try obj.GetFromObj(i8, interp, try obj.NewObj(int)));
-    }
-
-    {
-        const int: i16 = std.math.minInt(i16);
-        try std.testing.expectEqual(int, try obj.GetFromObj(i16, interp, try obj.NewObj(int)));
-    }
-
-    {
-        const int: i32 = std.math.minInt(i32);
-        try std.testing.expectEqual(int, try obj.GetFromObj(i32, interp, try obj.NewObj(int)));
-    }
-
-    {
-        const int: i64 = std.math.minInt(i64);
-        try std.testing.expectEqual(int, try obj.GetFromObj(i64, interp, try obj.NewObj(int)));
-    }
-}
-
-test "bool objs" {
-    var interp = tcl.Tcl_CreateInterp();
-    defer tcl.Tcl_DeleteInterp(interp);
-    var bl: bool = true;
-    try std.testing.expectEqual(bl, try obj.GetFromObj(bool, interp, try obj.NewObj(bl)));
-    bl = false;
-    try std.testing.expectEqual(bl, try obj.GetFromObj(bool, interp, try obj.NewObj(bl)));
-}
-
-test "float objs" {
-    var interp = tcl.Tcl_CreateInterp();
-    defer tcl.Tcl_DeleteInterp(interp);
-
-    const flt: f32 = std.math.f32_max;
-    try std.testing.expectEqual(flt, try obj.GetFromObj(f32, interp, try obj.NewObj(flt)));
-
-    const dbl: f64 = std.math.f64_max;
-    try std.testing.expectEqual(dbl, try obj.GetFromObj(f64, interp, try obj.NewObj(dbl)));
-}
-
-test "enum objs" {
-    const enm = enum {
-        A,
-    };
-
-    var interp = tcl.Tcl_CreateInterp();
-    defer tcl.Tcl_DeleteInterp(interp);
-
-    const enm_value: enm = .A;
-    try std.testing.expectEqual(enm_value, try obj.GetFromObj(enm, interp, try obj.NewObj(enm_value)));
-}
-
-test "array objs" {
-    var interp = tcl.Tcl_CreateInterp();
-    defer tcl.Tcl_DeleteInterp(interp);
-
-    const arr: [3]u8 = .{ 1, 2, 3 };
-    try std.testing.expectEqual(arr, try obj.GetFromObj([3]u8, interp, try obj.NewObj(&arr)));
-}
-
-test "union objs" {
-    const un = union(enum) {
-        flt: f32,
-        int: u64,
-    };
-
-    var interp = tcl.Tcl_CreateInterp();
-    defer tcl.Tcl_DeleteInterp(interp);
-
-    const un_value: un = .{ .flt = 0.1 };
-    try std.testing.expectEqual(un_value, try obj.GetFromObj(un, interp, try obj.NewObj(&un_value)));
-}
-
-test "struct objs" {
-    const strt = struct {
-        flt: f32,
-        int: u64,
-    };
-
-    var interp = tcl.Tcl_CreateInterp();
-    defer tcl.Tcl_DeleteInterp(interp);
-
-    const strt_value: strt = .{ .flt = 0.1, .int = 1 };
-    try std.testing.expectEqual(strt_value, try obj.GetFromObj(strt, interp, try obj.NewObj(&strt_value)));
-}
-
-test "fn obj" {
+test "call zig function without return" {
     var interp = tcl.Tcl_CreateInterp();
     defer tcl.Tcl_DeleteInterp(interp);
 
     const func = struct {
-        fn test_func(arg: u8) u8 {
-            return arg + 1;
+        fn testIntFunction() void {
+            return;
         }
-    }.test_func;
+    }.testIntFunction;
 
-    try std.testing.expectEqual(func, try obj.GetFromObj(fn (u8) u8, interp, try obj.NewObj(func)));
-}
-
-test "ptr obj" {
-    var interp = tcl.Tcl_CreateInterp();
-    defer tcl.Tcl_DeleteInterp(interp);
-
-    var value: u8 = 255;
-
-    try std.testing.expectEqual(&value, try obj.GetFromObj(*u8, interp, try obj.NewObj(&value)));
+    try CallZigFunction(func, interp, .{});
+    try obj.GetFromObj(void, interp, tcl.Tcl_GetObjResult(interp));
 }
