@@ -210,3 +210,23 @@ test "int objs" {
         try std.testing.expectEqual(int, try obj.GetFromObj(i64, interp, try obj.NewObj(int)));
     }
 }
+
+test "bool objs" {
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+    var bl: bool = true;
+    try std.testing.expectEqual(bl, try obj.GetFromObj(bool, interp, try obj.NewObj(bl)));
+    bl = false;
+    try std.testing.expectEqual(bl, try obj.GetFromObj(bool, interp, try obj.NewObj(bl)));
+}
+
+test "float objs" {
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    const flt: f32 = std.math.f32_max;
+    try std.testing.expectEqual(flt, try obj.GetFromObj(f32, interp, try obj.NewObj(flt)));
+
+    const dbl: f64 = std.math.f64_max;
+    try std.testing.expectEqual(dbl, try obj.GetFromObj(f64, interp, try obj.NewObj(dbl)));
+}
