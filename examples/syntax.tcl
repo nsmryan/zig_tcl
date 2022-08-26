@@ -2,6 +2,29 @@
 # What about a way to turn into a string? These are command style, but maybe there could be a
 # 'show' subcommand that uses Zig's standard print? or this is optional?
 
+# Ultimately the design should recurse into sub-types and use TCL namespaces to distinguish.
+
+
+# There is an alternative concept to the one below:
+strt create s
+# get field a
+s a
+# set field a
+s a 3
+# call a function on s. This would require some namespace and wrapping trickery.
+s::func 3
+# This doesn't work because decls can collide with field names
+s func 3
+# Maybe this would still work in this design, but would require checking for this name...
+s call func
+# Doesn't really work.
+strt::func s 3
+
+# The advantage is terseness. The disadvantage is that decls seem to require some trickery.
+# If there is a terse way to call decl's that doesn't require TCL wrapping and tricks,
+# this would be a better syntax.
+
+
 ## Example usage code for structs, for a struct called 'strt'
 #   with field 'a', decl 'func', and type level decl 'decl'
 #
@@ -27,6 +50,10 @@ s field a
 
 # set a field value
 s field a 5
+
+# Print all fields and values
+s field
+
 
 ## Example usage code for enums, for an enum called 'enm'
 #  create a new enum command. if not given, use the default value
