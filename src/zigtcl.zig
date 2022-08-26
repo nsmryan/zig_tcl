@@ -84,11 +84,7 @@ pub fn WrapFunction(comptime function: anytype, name: [*:0]const u8, outer_inter
 // Wrap a declaration taking a pointer to self as the first argument.
 // The 'self' pointer comes from cdata, rather then getting passed in with objv.
 // NOTE this is untested! make a decl in the example, register it, and try.
-// TODO modify this to call the function, rather then register it. This is for decls, which will
-// be called in a registered function, not registered themselves this way.
 pub fn WrapDecl(comptime function: anytype, interp: obj.Interp, cdata: tcl.ClientData, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) err.TclError!void {
-    _ = cdata;
-
     // This tests seems to fail for Fn and BoundFn.
     //if (!std.meta.trait.is(.Fn)(@TypeOf(function))) {
     //    @compileError("Cannot wrap a decl that is not a function!");
@@ -96,7 +92,9 @@ pub fn WrapDecl(comptime function: anytype, interp: obj.Interp, cdata: tcl.Clien
 
     var args: std.meta.ArgsTuple(@TypeOf(function)) = undefined;
 
-    if ((args.len + 1) != objc) {
+    // The arguents will have an extra field for the cdata to pass into.
+    // The objc starts with the proc name, so they have the same length.
+    if (args.len != objc) {
         return err.TclError.TCL_ERROR;
     }
 
@@ -107,7 +105,7 @@ pub fn WrapDecl(comptime function: anytype, interp: obj.Interp, cdata: tcl.Clien
 
     comptime var index = 1;
     inline while (index < args.len) : (index += 1) {
-        args[index] = try obj.GetFromObj(@TypeOf(args[index]), interp, objv[index + 1]);
+        args[index] = try obj.GetFromObj(@TypeOf(args[index]), interp, objv[index]);
     }
 
     return CallZigFunction(function, interp, args);
@@ -171,4 +169,25 @@ test "call zig function without return" {
 
     try CallZigFunction(func, interp, .{});
     try obj.GetFromObj(void, interp, tcl.Tcl_GetObjResult(interp));
+}
+
+test "wrap decl" {
+    const s = struct {
+        field: u32 = 1,
+
+        pub fn init() @This() {
+            return .{};
+        }
+
+        pub fn func(self: *@This(), arg: u32) u32 {
+            return arg + self.field;
+        }
+    };
+
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    var instance: s = s.init();
+    var objv: [2][*c]tcl.Tcl_Obj = .{ try obj.NewObj("func"), try obj.NewObj(@as(u32, 2)) };
+    try WrapDecl(s.func, interp, &instance, objv.len, &objv);
 }
