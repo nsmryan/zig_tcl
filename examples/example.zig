@@ -30,6 +30,22 @@ const Enum = enum {
     E3,
 };
 
+pub fn EnumCommand(enm: type) type {
+    return struct {
+        pub fn command(cdata: zt.tcl.ClientData, interp: [*c]zt.tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]zt.tcl.Tcl_Obj) c_int {
+            // TODO check for single input. Pass to
+        }
+    };
+}
+
+pub fn RegisterEnum(comptime enm: type, pkg: [*c]u8, interp: obj.Interp) c_int {
+    const info = @typeInfo(enm);
+    Tcl_ObjSetVar2(interp, part1Ptr, part2Ptr, newValuePtr, flags);
+
+    const enumCmdName = pkg ++ "::" ++ @typeName(enm) ++ 0;
+    _ = zt.CreateObjCommand(interp, enumCmdName, EnumFunction(enm).command);
+}
+
 export fn Struct_TclCmd(cdata: zt.tcl.ClientData, interp: [*c]zt.tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]zt.tcl.Tcl_Obj) c_int {
     _ = objc;
 
