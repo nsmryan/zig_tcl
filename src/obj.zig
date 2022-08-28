@@ -42,6 +42,35 @@ pub fn GetDoubleFromObj(interp: Interp, obj: Obj) err.TclError!f64 {
     return int;
 }
 
+pub fn WrongNumArgs(interp: Interp, objv: []const Obj, str: [*c]const u8) err.TclError!void {
+    tcl.Tcl_WrongNumArgs(interp, @intCast(c_int, objv.len), objv.ptr, str);
+}
+
+fn NullTerminatedNames(comptime enm: type) []const [*c]const u8 {
+    comptime {
+        const commandNames = std.meta.fieldNames(enm);
+
+        var names: [commandNames.len][*c]const u8 = undefined;
+        inline for (commandNames) |commandName, index| {
+            names[index] = @ptrCast([*c]const u8, std.fmt.comptimePrint("{s}", .{commandName}));
+        }
+        return names[0..];
+    }
+}
+
+pub fn GetIndexFromObj(comptime enm: type, interp: Interp, name: Obj, msg: [*c]const u8) err.TclError!enm {
+    const commandNames = NullTerminatedNames(enm);
+
+    var index: c_int = undefined;
+    // NOTE fixing 0 as the flags: could take as parameter.
+    if (tcl.Tcl_GetIndexFromObj(interp, name, @ptrCast([*c]const [*c]const u8, commandNames.ptr), msg, 0, &index) == tcl.TCL_OK) {
+        return @intToEnum(enm, index);
+    } else {
+        return err.TclError.TCL_ERROR;
+    }
+}
+
+// NOTE Should this slice to length - 1?
 pub fn GetStringFromObj(obj: Obj) err.TclError![]const u8 {
     var length: c_int = undefined;
     const str = tcl.Tcl_GetStringFromObj(obj, &length);
@@ -59,9 +88,23 @@ pub fn NewStringObj(str: []const u8) Obj {
     return tcl.Tcl_NewStringObj(str.ptr, @intCast(c_int, str.len));
 }
 
+pub fn NewListWithCapacity(capacity: c_int) Obj {
+    return tcl.Tcl_NewListObj(capacity, null);
+}
+
+// Tcl_NewListObj wrapper
+pub fn NewListObj(objs: []Obj) Obj {
+    return tcl.Tcl_NewListObj(objs.len, objs.ptr);
+}
+
 // Tcl_SetObjResult wrapper
 pub fn SetObjResult(interp: Interp, obj: Obj) void {
     tcl.Tcl_SetObjResult(interp, obj);
+}
+
+// Tcl_SetObjResult wrapper
+pub fn SetStrResult(interp: Interp, str: [*c]const u8) void {
+    SetObjResult(interp, tcl.Tcl_NewStringObj(str, -1));
 }
 
 /// Tcl_NewIntObj wrapper for all int types (Int, Long, WideInt).
@@ -100,7 +143,7 @@ pub const Interp = [*c]tcl.Tcl_Interp;
 pub const Obj = [*c]tcl.Tcl_Obj;
 //pub const Command = tcl.Tcl_Command;
 
-pub const ZigTclCmd = fn (cdata: tcl.ClientData, interp: Interp, objv: []const [*c]tcl.Tcl_Obj) err.TclError!void;
+pub const ZigTclCmd = fn (cdata: tcl.ClientData, interp: Interp, objv: []const Obj) err.TclError!void;
 
 pub fn ZigTcl_CallCmd(function: ZigTclCmd, cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) c_int {
     return err.ZigTcl_TclResult(function(cdata, interp, objv[0..@intCast(usize, objc)]));
@@ -114,8 +157,12 @@ pub export fn Wrap_ZigCmd(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, obj
 
 /// Create a new TCL command that executes a Zig function.
 /// The Zig function is given using the ziggy ZigTclCmd signature.
-pub fn CreateObjCommand(interp: Interp, name: [*:0]const u8, function: ZigTclCmd) tcl.Tcl_Command {
-    return tcl.Tcl_CreateObjCommand(interp, name, Wrap_ZigCmd, @intToPtr(tcl.ClientData, @ptrToInt(function)), null);
+pub fn CreateObjCommand(interp: Interp, name: [*:0]const u8, function: ZigTclCmd) err.TclError!tcl.Tcl_Command {
+    const result = tcl.Tcl_CreateObjCommand(interp, name, Wrap_ZigCmd, @intToPtr(tcl.ClientData, @ptrToInt(function)), null);
+    if (result == null) {
+        return err.TclError.TCL_ERROR;
+    }
+    return result;
 }
 
 pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) err.TclError!T {
@@ -153,6 +200,8 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) err.TclError!T {
             }
         },
 
+        // TODO this is not necessarily the correct thing to do. A pointer can be a string, a block,
+        // or an integer pointer. Perhaps provide separate functions for these?
         .Pointer => return @intToPtr(T, @intCast(usize, try GetWideIntFromObj(interp, obj))),
 
         // NOTE This implementation may result in more work then necessary! I'm not sure that it actually shimmers

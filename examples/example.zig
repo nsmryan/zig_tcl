@@ -43,10 +43,10 @@ const Enum = enum {
 //    Tcl_ObjSetVar2(interp, part1Ptr, part2Ptr, newValuePtr, flags);
 //
 //    const enumCmdName = pkg ++ "::" ++ @typeName(enm) ++ 0;
-//    _ = zt.CreateObjCommand(interp, enumCmdName, EnumFunction(enm).command);
+//    _ = zt.CreateObjCommand(interp, enumCmdName, EnumCommand(enm).command);
 //}
 
-export fn Struct_TclCmd(cdata: zt.tcl.ClientData, interp: [*c]zt.tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]zt.tcl.Tcl_Obj) c_int {
+fn Struct_TclCmd(cdata: zt.tcl.ClientData, interp: [*c]zt.tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]zt.tcl.Tcl_Obj) callconv(.C) c_int {
     _ = objc;
 
     var s = @ptrCast(*Struct, @alignCast(@alignOf(Struct), cdata));
@@ -179,9 +179,11 @@ export fn Zigexample_Init(interp: zt.Interp) c_int {
         std.debug.print("\nInit result {s}\n", .{rc});
     }
 
-    _ = zt.CreateObjCommand(interp, "zigtcl::zigcreate", Hello_ZigTclCmd);
+    _ = zt.CreateObjCommand(interp, "zigtcl::zigcreate", Hello_ZigTclCmd) catch return zt.tcl.TCL_ERROR;
 
     zt.WrapFunction(test_function, "zigtcl::zig_function", interp) catch return zt.tcl.TCL_ERROR;
+
+    _ = zt.RegisterStruct(Struct, "zigtcl", interp);
 
     return zt.tcl.Tcl_PkgProvide(interp, "zigtcl", "0.1.0");
 }

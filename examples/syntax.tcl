@@ -17,8 +17,10 @@ s::func 3
 s func 3
 # Maybe this would still work in this design, but would require checking for this name...
 s call func
-# Doesn't really work.
+# Doesn't really work without trickyness, and doesn't seem TCL style.
 strt::func s 3
+# Not TCL style
+call strt func s 3
 
 # The advantage is terseness. The disadvantage is that decls seem to require some trickery.
 # If there is a terse way to call decl's that doesn't require TCL wrapping and tricks,
@@ -27,6 +29,8 @@ strt::func s 3
 
 ## Example usage code for structs, for a struct called 'strt'
 #   with field 'a', decl 'func', and type level decl 'decl'
+#   TCL style, but more verbose then the previous concept.
+#   Consider supporting both the field and cget styles.
 #
 #  create a new instance
 strt create s
@@ -100,3 +104,15 @@ u call decl
 unn call decl
 
 
+## Error Sets
+# Likely an error set will trigger an exception when run
+err:e
+# Get value as int
+err::e value
+# Get name
+err::e name
+# IDK that there is any reason to make commands for error sets really
+
+
+# What about error union types? may need to just unpack them?
+# Optional?
