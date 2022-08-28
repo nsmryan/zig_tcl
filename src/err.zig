@@ -12,7 +12,7 @@ pub const TclError = error{
     TCL_CONTINUE,
 };
 
-pub fn ZigTcl_ErrorToInt(errValue: TclError) c_int {
+pub fn ErrorToInt(errValue: TclError) c_int {
     switch (errValue) {
         TclError.TCL_ERROR => return tcl.TCL_ERROR,
         TclError.TCL_RETURN => return tcl.TCL_RETURN,
@@ -21,15 +21,15 @@ pub fn ZigTcl_ErrorToInt(errValue: TclError) c_int {
     }
 }
 
-pub fn ZigTcl_TclResult(result: TclError!void) c_int {
+pub fn TclResult(result: TclError!void) c_int {
     if (result) {
         return tcl.TCL_OK;
     } else |errValue| {
-        return ZigTcl_ErrorToInt(errValue);
+        return ErrorToInt(errValue);
     }
 }
 
-pub fn ZigTcl_HandleReturn(result: c_int) TclError!void {
+pub fn HandleReturn(result: c_int) TclError!void {
     if (result == tcl.TCL_ERROR) {
         return TclError.TCL_ERROR;
     } else if (result == tcl.TCL_RETURN) {

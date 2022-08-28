@@ -51,4 +51,7 @@ proc checkField { name value } {
     if { $result != $value } { throw ZIGTCLINVALID "$name '$result' did not match '$value'" }
 }
 
+zigtcl::Struct create s
+puts [s get bl]
+
 runTests

@@ -84,7 +84,7 @@ pub fn WrapFunction(comptime function: anytype, name: [*:0]const u8, outer_inter
 // Wrap a declaration taking a pointer to self as the first argument.
 // The 'self' pointer comes from cdata, rather then getting passed in with objv.
 // NOTE this is untested! make a decl in the example, register it, and try.
-pub fn WrapDecl(comptime function: anytype, interp: obj.Interp, cdata: tcl.ClientData, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) err.TclError!void {
+pub fn CallDecl(comptime function: anytype, interp: obj.Interp, cdata: tcl.ClientData, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) err.TclError!void {
     // This tests seems to fail for Fn and BoundFn.
     //if (!std.meta.trait.is(.Fn)(@TypeOf(function))) {
     //    @compileError("Cannot wrap a decl that is not a function!");
@@ -121,7 +121,7 @@ pub fn CallZigFunction(comptime function: anytype, interp: obj.Interp, args: any
                 // and return TCL_ERROR to trigger an exception.
                 // NOTE I'm not sure whether void will work here, or if we need to check explicitly for it.
                 if (@call(.{}, function, args)) |result| {
-                    obj.SetObjResult(interp, try obj.NewObj(result));
+                    obj.SetObjResult(interp, try obj.ToObj(result));
                 } else |errResult| {
                     obj.SetObjResult(interp, obj.NewStringObj(@errorName(errResult)));
                     return err.TclError.TCL_ERROR;
@@ -135,7 +135,7 @@ pub fn CallZigFunction(comptime function: anytype, interp: obj.Interp, args: any
             }
         } else {
             // If no error return, just call and convert result to a TCL object.
-            obj.SetObjResult(interp, try obj.NewObj(@call(.{}, function, args)));
+            obj.SetObjResult(interp, try obj.ToObj(@call(.{}, function, args)));
         }
     } else {
         // If no return, just call the function.
@@ -188,8 +188,8 @@ test "wrap decl" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     var instance: s = s.init();
-    var objv: [2][*c]tcl.Tcl_Obj = .{ try obj.NewObj("func"), try obj.NewObj(@as(u32, 2)) };
-    try WrapDecl(s.func, interp, &instance, objv.len, &objv);
+    var objv: [2][*c]tcl.Tcl_Obj = .{ try obj.ToObj("func"), try obj.ToObj(@as(u32, 2)) };
+    try CallDecl(s.func, interp, &instance, objv.len, &objv);
 }
 
 pub const StructCmds = enum {
@@ -238,7 +238,7 @@ pub fn StructCommand(comptime strt: type) type {
             }
 
             var strt_ptr = @ptrCast(*strt, @alignCast(@alignOf(strt), cdata));
-            const cmd = obj.GetIndexFromObj(StructInstanceCmds, interp, objv[1], "commands") catch |errResult| return err.ZigTcl_TclResult(errResult);
+            const cmd = obj.GetIndexFromObj(StructInstanceCmds, interp, objv[1], "commands") catch |errResult| return err.TclResult(errResult);
             switch (cmd) {
                 .get => {
                     return StructGetFieldCmd(strt_ptr, interp, objc, objv);
@@ -268,8 +268,8 @@ pub fn StructCommand(comptime strt: type) type {
                 inline for (@typeInfo(strt).Struct.fields) |field| {
                     if (std.mem.eql(u8, name[0..(@intCast(usize, length) - 1)], field.name)) {
                         found = true;
-                        //var fieldObj = obj.NewObj(@field(ptr.*, fieldName));
-                        var fieldObj = StructGetField(ptr, field.name) catch |errResult| return err.ZigTcl_TclResult(errResult);
+                        //var fieldObj = obj.ToObj(@field(ptr.*, fieldName));
+                        var fieldObj = StructGetField(ptr, field.name) catch |errResult| return err.TclResult(errResult);
                         const result = tcl.Tcl_ListObjReplace(interp, resultList, @intCast(c_int, index), 1, 1, &fieldObj);
                         if (result != tcl.TCL_OK) {
                             return result;
@@ -287,7 +287,7 @@ pub fn StructCommand(comptime strt: type) type {
         }
 
         pub fn StructGetField(ptr: *strt, comptime fieldName: []const u8) err.TclError!obj.Obj {
-            return obj.NewObj(@field(ptr.*, fieldName));
+            return obj.ToObj(@field(ptr.*, fieldName));
         }
     };
 }
@@ -301,12 +301,9 @@ pub fn TclDeallocateCallback(cdata: tcl.ClientData) callconv(.C) void {
 }
 
 pub fn RegisterStruct(comptime strt: type, comptime pkg: []const u8, interp: obj.Interp) c_int {
-    //const info = @typeInfo(strt);
-    //Tcl_ObjSetVar2(interp, part1Ptr, part2Ptr, newValuePtr, flags);
-
     const terminator: [1]u8 = .{0};
     const cmdName = pkg ++ "::" ++ @typeName(strt) ++ terminator;
-    _ = obj.CreateObjCommand(interp, cmdName, StructCommand(strt).command) catch |errResult| return err.ZigTcl_ErrorToInt(errResult);
+    _ = obj.CreateObjCommand(interp, cmdName, StructCommand(strt).command) catch |errResult| return err.ErrorToInt(errResult);
 
     return tcl.TCL_OK;
 }

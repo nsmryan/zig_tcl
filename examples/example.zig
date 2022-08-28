@@ -54,7 +54,7 @@ fn Struct_TclCmd(cdata: zt.tcl.ClientData, interp: [*c]zt.tcl.Tcl_Interp, objc: 
     // If given no arguments, return a pointer to the value.
     if (objc == 1) {
         // I believe wide int should be long enough for a pointer on all platforms.
-        const ptr_obj = zt.obj.NewObj(@ptrToInt(cdata)) catch return zt.tcl.TCL_ERROR;
+        const ptr_obj = zt.obj.ToObj(@ptrToInt(cdata)) catch return zt.tcl.TCL_ERROR;
         const struct_copy = zt.GetFromObj(Struct, interp, ptr_obj) catch return zt.tcl.TCL_ERROR;
 
         std.testing.expect(std.meta.eql(s.*, struct_copy)) catch @panic("struct ptr copy did not work!");
@@ -67,24 +67,24 @@ fn Struct_TclCmd(cdata: zt.tcl.ClientData, interp: [*c]zt.tcl.Tcl_Interp, objc: 
     const name = zt.tcl.Tcl_GetStringFromObj(objv[1], &name_length);
 
     if (std.mem.eql(u8, std.mem.span(name), "decl1")) {
-        zt.WrapDecl(Struct.decl1, interp, cdata, objc, objv) catch return zt.tcl.TCL_ERROR;
+        zt.CallDecl(Struct.decl1, interp, cdata, objc, objv) catch return zt.tcl.TCL_ERROR;
     } else if (std.mem.eql(u8, std.mem.span(name), "decl2")) {
-        zt.WrapDecl(Struct.decl2, interp, cdata, objc, objv) catch return zt.tcl.TCL_ERROR;
+        zt.CallDecl(Struct.decl2, interp, cdata, objc, objv) catch return zt.tcl.TCL_ERROR;
     } else if (std.mem.eql(u8, std.mem.span(name), "bl")) {
         if (objc > 2) {
             s.bl = zt.GetFromObj(bool, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
-        zt.obj.SetObjResult(interp, zt.NewObj(s.bl) catch return zt.tcl.TCL_ERROR);
+        zt.obj.SetObjResult(interp, zt.ToObj(s.bl) catch return zt.tcl.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "int")) {
         if (objc > 2) {
             s.int = zt.GetFromObj(c_int, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
-        zt.obj.SetObjResult(interp, zt.NewObj(s.int) catch return zt.tcl.TCL_ERROR);
+        zt.obj.SetObjResult(interp, zt.ToObj(s.int) catch return zt.tcl.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "long")) {
         if (objc > 2) {
             s.long = zt.GetFromObj(c_long, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
-        zt.obj.SetObjResult(interp, zt.NewObj(s.long) catch return zt.tcl.TCL_ERROR);
+        zt.obj.SetObjResult(interp, zt.ToObj(s.long) catch return zt.tcl.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "wide")) {
         if (objc > 2) {
             s.wide = zt.GetFromObj(c_longlong, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
@@ -94,7 +94,7 @@ fn Struct_TclCmd(cdata: zt.tcl.ClientData, interp: [*c]zt.tcl.Tcl_Interp, objc: 
         if (objc > 2) {
             s.zig_int = zt.GetFromObj(u8, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
-        zt.obj.SetObjResult(interp, zt.NewObj(s.zig_int) catch return zt.tcl.TCL_ERROR);
+        zt.obj.SetObjResult(interp, zt.ToObj(s.zig_int) catch return zt.tcl.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "string")) {
         if (objc > 2) {
             const str = zt.GetStringFromObj(objv[2]) catch return zt.tcl.TCL_ERROR;
@@ -111,18 +111,18 @@ fn Struct_TclCmd(cdata: zt.tcl.ClientData, interp: [*c]zt.tcl.Tcl_Interp, objc: 
         if (objc > 2) {
             s.float = zt.GetFromObj(f32, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
-        zt.obj.SetObjResult(interp, zt.NewObj(s.float) catch return zt.tcl.TCL_ERROR);
+        zt.obj.SetObjResult(interp, zt.ToObj(s.float) catch return zt.tcl.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "ptr")) {
         if (objc > 2) {
             s.ptr = zt.GetFromObj(*u8, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
-        zt.obj.SetObjResult(interp, zt.NewObj(s.ptr) catch return zt.tcl.TCL_ERROR);
+        zt.obj.SetObjResult(interp, zt.ToObj(s.ptr) catch return zt.tcl.TCL_ERROR);
     } else if (std.mem.eql(u8, std.mem.span(name), "enm")) {
         if (objc > 2) {
             s.enm = zt.GetFromObj(Enum, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
         }
 
-        // NOTE NewObj is not used here, as it returns the integer value of the enum rather then
+        // NOTE ToObj is not used here, as it returns the integer value of the enum rather then
         // the string.
         var found: bool = false;
         inline for (@typeInfo(Enum).Enum.fields) |field| {
