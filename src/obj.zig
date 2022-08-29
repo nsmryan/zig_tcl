@@ -2,7 +2,6 @@ const std = @import("std");
 const testing = std.testing;
 
 const err = @import("err.zig");
-usingnamespace err;
 
 const tcl = @import("tcl.zig");
 
