@@ -93,8 +93,8 @@ pub fn CallDecl(comptime function: anytype, interp: obj.Interp, cdata: tcl.Clien
     var args: std.meta.ArgsTuple(@TypeOf(function)) = undefined;
 
     // The arguents will have an extra field for the cdata to pass into.
-    // The objc starts with the proc name, so they have the same length.
-    if (args.len != objc) {
+    // The objc starts with the command and and proc name.
+    if (args.len + 1 != objc) {
         return err.TclError.TCL_ERROR;
     }
 
@@ -103,9 +103,9 @@ pub fn CallDecl(comptime function: anytype, interp: obj.Interp, cdata: tcl.Clien
     const self_type = @typeInfo(@TypeOf(function)).Fn.args[0].arg_type.?;
     args[0] = @ptrCast(self_type, @alignCast(@alignOf(self_type), cdata));
 
-    comptime var index = 1;
-    inline while (index < args.len) : (index += 1) {
-        args[index] = try obj.GetFromObj(@TypeOf(args[index]), interp, objv[index]);
+    comptime var argIndex = 1;
+    inline while (argIndex < args.len) : (argIndex += 1) {
+        args[argIndex] = try obj.GetFromObj(@TypeOf(args[argIndex]), interp, objv[argIndex + 1]);
     }
 
     return CallZigFunction(function, interp, args);
@@ -171,7 +171,7 @@ test "call zig function without return" {
     try obj.GetFromObj(void, interp, tcl.Tcl_GetObjResult(interp));
 }
 
-test "wrap decl" {
+test "call decl" {
     const s = struct {
         field: u32 = 1,
 
@@ -188,7 +188,7 @@ test "wrap decl" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     var instance: s = s.init();
-    var objv: [2][*c]tcl.Tcl_Obj = .{ try obj.ToObj("func"), try obj.ToObj(@as(u32, 2)) };
+    var objv: [3][*c]tcl.Tcl_Obj = .{ try obj.ToObj("obj"), try obj.ToObj("func"), try obj.ToObj(@as(u32, 2)) };
     try CallDecl(s.func, interp, &instance, objv.len, &objv);
 }
 
@@ -220,12 +220,16 @@ pub fn StructCommand(comptime strt: type) type {
                     var ptr = tcl.Tcl_Alloc(@sizeOf(strt));
                     const result = tcl.Tcl_CreateObjCommand(interp, name, StructInstanceCommand, @ptrCast(tcl.ClientData, ptr), TclDeallocateCallback);
                     if (result == null) {
+                        obj.SetStrResult(interp, "Could not create command!");
                         return err.TclError.TCL_ERROR;
+                    } else {
+                        return;
                     }
                     //return tcl.Tcl_CreateObjCommand(interp, name, StructInstanceCommand, @intToPtr(tcl.ClientData, @ptrToInt(ptr)), null);
                 },
             }
 
+            obj.SetStrResult(interp, "Unexpected subcommand name when creating struct!");
             return err.TclError.TCL_ERROR;
         }
 
@@ -244,6 +248,7 @@ pub fn StructCommand(comptime strt: type) type {
                     return StructGetFieldCmd(strt_ptr, interp, objc, objv);
                 },
             }
+            obj.SetStrResult(interp, "Unexpected subcommand!");
             return tcl.TCL_ERROR;
         }
 
@@ -266,14 +271,15 @@ pub fn StructCommand(comptime strt: type) type {
 
                 var found: bool = false;
                 inline for (@typeInfo(strt).Struct.fields) |field| {
-                    if (std.mem.eql(u8, name[0..(@intCast(usize, length) - 1)], field.name)) {
+                    if (std.mem.eql(u8, name[0..@intCast(usize, length)], field.name)) {
                         found = true;
-                        //var fieldObj = obj.ToObj(@field(ptr.*, fieldName));
                         var fieldObj = StructGetField(ptr, field.name) catch |errResult| return err.TclResult(errResult);
                         const result = tcl.Tcl_ListObjReplace(interp, resultList, @intCast(c_int, index), 1, 1, &fieldObj);
                         if (result != tcl.TCL_OK) {
+                            obj.SetStrResult(interp, "Failed to retrieve a field from a struct!");
                             return result;
                         }
+                        break;
                     }
                 }
 
@@ -282,6 +288,8 @@ pub fn StructCommand(comptime strt: type) type {
                     return tcl.TCL_ERROR;
                 }
             }
+
+            obj.SetObjResult(interp, resultList);
 
             return tcl.TCL_OK;
         }
