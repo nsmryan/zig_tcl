@@ -52,8 +52,15 @@ proc checkField { name value } {
 }
 
 zigtcl::Struct create s
+puts "bl [s set bl 1]"
 puts "bl [s get bl]"
+
+puts "enm [s set enm 1]"
 puts "enm [s get enm]"
+
+s set long 10
+s set int 11
+s set wide 12
 puts "multiple [s get long int wide]"
 
 runTests

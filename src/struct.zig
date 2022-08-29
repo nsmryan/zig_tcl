@@ -131,11 +131,7 @@ pub fn StructCommand(comptime strt: type) type {
                 inline for (@typeInfo(strt).Struct.fields) |field| {
                     if (std.mem.eql(u8, name[0..@intCast(usize, length)], field.name)) {
                         found = true;
-                        var fieldObj = StructSetField(ptr, field.name, objv[index + 1]) catch |errResult| return err.TclResult(errResult);
-                        if (result != tcl.TCL_OK) {
-                            obj.SetStrResult(interp, "Failed to set a field in a struct!");
-                            return result;
-                        }
+                        StructSetField(ptr, field.name, interp, objv[index + 1]) catch |errResult| return err.TclResult(errResult);
                         break;
                     }
                 }
@@ -153,8 +149,8 @@ pub fn StructCommand(comptime strt: type) type {
             return obj.ToObj(@field(ptr.*, fieldName));
         }
 
-        pub fn StructSetField(ptr: *strt, comptime fieldName: []const u8, obj: obj.Obj) err.TclError!obj.Obj {
-            @field(ptr.*, fieldName) = try obj.GetFromObj(@TypeOf(@field(ptr.*, fieldName)), obj);
+        pub fn StructSetField(ptr: *strt, comptime fieldName: []const u8, interp: obj.Interp, fieldObj: obj.Obj) err.TclError!void {
+            @field(ptr.*, fieldName) = try obj.GetFromObj(@TypeOf(@field(ptr.*, fieldName)), interp, fieldObj);
         }
     };
 }
