@@ -62,6 +62,10 @@ pub fn StructCommand(comptime strt: type) type {
                 .get => {
                     return StructGetFieldCmd(strt_ptr, interp, objc, objv);
                 },
+
+                .set => {
+                    return StructSetFieldCmd(strt_ptr, interp, objc, objv);
+                },
             }
             obj.SetStrResult(interp, "Unexpected subcommand!");
             return tcl.TCL_ERROR;
@@ -109,14 +113,55 @@ pub fn StructCommand(comptime strt: type) type {
             return tcl.TCL_OK;
         }
 
+        pub fn StructSetFieldCmd(ptr: *strt, interp: obj.Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) c_int {
+            if (objc < 4) {
+                tcl.Tcl_WrongNumArgs(interp, objc, objv, "set name value ... name value");
+                return tcl.TCL_ERROR;
+            }
+
+            var index: usize = 2;
+            while (index < objc) : (index += 2) {
+                var length: c_int = undefined;
+                const name = tcl.Tcl_GetStringFromObj(objv[index], &length);
+                if (length == 0) {
+                    continue;
+                }
+
+                var found: bool = false;
+                inline for (@typeInfo(strt).Struct.fields) |field| {
+                    if (std.mem.eql(u8, name[0..@intCast(usize, length)], field.name)) {
+                        found = true;
+                        var fieldObj = StructSetField(ptr, field.name, objv[index + 1]) catch |errResult| return err.TclResult(errResult);
+                        if (result != tcl.TCL_OK) {
+                            obj.SetStrResult(interp, "Failed to set a field in a struct!");
+                            return result;
+                        }
+                        break;
+                    }
+                }
+
+                if (!found) {
+                    obj.SetStrResult(interp, "One or more field names not found in struct set!");
+                    return tcl.TCL_ERROR;
+                }
+            }
+
+            return tcl.TCL_OK;
+        }
+
         pub fn StructGetField(ptr: *strt, comptime fieldName: []const u8) err.TclError!obj.Obj {
             return obj.ToObj(@field(ptr.*, fieldName));
+        }
+
+        pub fn StructSetField(ptr: *strt, comptime fieldName: []const u8, obj: obj.Obj) err.TclError!obj.Obj {
+            @field(ptr.*, fieldName) = try obj.GetFromObj(@TypeOf(@field(ptr.*, fieldName)), obj);
         }
     };
 }
 
 pub const StructInstanceCmds = enum {
     get,
+    set,
 };
 
 pub fn TclDeallocateCallback(cdata: tcl.ClientData) callconv(.C) void {
