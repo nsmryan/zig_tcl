@@ -51,7 +51,8 @@ pub fn NewObj() err.TclError!Obj {
 }
 
 pub fn NewByteArrayObj(value: anytype) err.TclError!Obj {
-    const result = tcl.Tcl_NewByteArrayObj(&value, @sizeOf(@TypeOf(value)));
+    const ptr = @ptrCast([*c]const u8, &value);
+    const result = tcl.Tcl_NewByteArrayObj(ptr, @sizeOf(@TypeOf(value)));
     if (result == null) {
         return err.TclError.TCL_ERROR;
     } else {
@@ -235,20 +236,29 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) err.TclError!T {
             }
         },
 
-        // This may not be the only way to do this. Passing pointers to TCL like this is not generally
-        // a good idea. A similar comment applies to Union and Struct.
         .Array => {
-            const ptr = @intToPtr(*T, @intCast(usize, try GetWideIntFromObj(interp, obj)));
+            var length: c_int = undefined;
+            var bytes = tcl.Tcl_GetByteArrayFromObj(obj, &length);
+
+            const ptr = @ptrCast(*T, bytes);
             return ptr.*;
         },
 
+        // This may not be the only way to do this. Passing pointers to TCL like this is not generally
+        // a good idea. A similar comment applies to Struct.
         .Union => {
-            const ptr = @intToPtr(*T, @intCast(usize, try GetWideIntFromObj(interp, obj)));
+            var length: c_int = undefined;
+            var bytes = tcl.Tcl_GetByteArrayFromObj(obj, &length);
+
+            const ptr = @ptrCast(*T, @alignCast(@alignOf(T), bytes));
             return ptr.*;
         },
 
         .Struct => {
-            const ptr = @intToPtr(*T, @intCast(usize, try GetWideIntFromObj(interp, obj)));
+            var length: c_int = undefined;
+            var bytes = tcl.Tcl_GetByteArrayFromObj(obj, &length);
+
+            const ptr = @ptrCast(*T, @alignCast(@alignOf(T), bytes));
             return ptr.*;
         },
 
@@ -448,7 +458,7 @@ test "array objs" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     const arr: [3]u8 = .{ 1, 2, 3 };
-    try std.testing.expectEqual(arr, try GetFromObj([3]u8, interp, try ToObj(&arr)));
+    try std.testing.expectEqual(arr, try GetFromObj([3]u8, interp, try ToObj(arr)));
 }
 
 test "union objs" {
@@ -461,7 +471,7 @@ test "union objs" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     const un_value: un = .{ .flt = 0.1 };
-    try std.testing.expectEqual(un_value, try GetFromObj(un, interp, try ToObj(&un_value)));
+    try std.testing.expectEqual(un_value, try GetFromObj(un, interp, try ToObj(un_value)));
 }
 
 test "struct objs" {
@@ -474,7 +484,7 @@ test "struct objs" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     const strt_value: strt = .{ .flt = 0.1, .int = 1 };
-    try std.testing.expectEqual(strt_value, try GetFromObj(strt, interp, try ToObj(&strt_value)));
+    try std.testing.expectEqual(strt_value, try GetFromObj(strt, interp, try ToObj(strt_value)));
 }
 
 test "fn obj" {

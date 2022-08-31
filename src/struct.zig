@@ -11,6 +11,11 @@ pub const StructCmds = enum {
     create,
 };
 
+pub const StructInstanceCmds = enum {
+    get,
+    set,
+};
+
 pub fn StructCommand(comptime strt: type) type {
     return struct {
         pub fn command(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objv: []const obj.Obj) err.TclError!void {
@@ -155,11 +160,6 @@ pub fn StructCommand(comptime strt: type) type {
     };
 }
 
-pub const StructInstanceCmds = enum {
-    get,
-    set,
-};
-
 pub fn TclDeallocateCallback(cdata: tcl.ClientData) callconv(.C) void {
     tcl.Tcl_Free(@ptrCast([*c]u8, cdata));
 }
@@ -170,4 +170,83 @@ pub fn RegisterStruct(comptime strt: type, comptime pkg: []const u8, interp: obj
     _ = obj.CreateObjCommand(interp, cmdName, StructCommand(strt).command) catch |errResult| return err.ErrorToInt(errResult);
 
     return tcl.TCL_OK;
+}
+
+test "struct create/set/get" {
+    const s = struct {
+        field0: u32,
+        field1: [4]u8,
+        field2: f64,
+    };
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    var result: c_int = undefined;
+    result = RegisterStruct(s, "test", interp);
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "test::s create instance");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    {
+        result = tcl.Tcl_Eval(interp, "instance set field0 100");
+        try std.testing.expectEqual(tcl.TCL_OK, result);
+
+        result = tcl.Tcl_Eval(interp, "instance get field0");
+        try std.testing.expectEqual(tcl.TCL_OK, result);
+        const resultObj = tcl.Tcl_GetObjResult(interp);
+        try std.testing.expectEqual(@as(u32, 100), try obj.GetFromObj(u32, interp, resultObj));
+    }
+
+    {
+        result = tcl.Tcl_Eval(interp, "instance set field1 test");
+        try std.testing.expectEqual(tcl.TCL_OK, result);
+
+        result = tcl.Tcl_Eval(interp, "instance get field1");
+        try std.testing.expectEqual(tcl.TCL_OK, result);
+        const resultObj = tcl.Tcl_GetObjResult(interp);
+        const expected: [4]u8 = .{ 't', 'e', 's', 't' };
+        try std.testing.expectEqual(expected, try obj.GetFromObj([4]u8, interp, resultObj));
+    }
+
+    {
+        result = tcl.Tcl_Eval(interp, "instance set field2 1.4");
+        try std.testing.expectEqual(tcl.TCL_OK, result);
+
+        result = tcl.Tcl_Eval(interp, "instance get field2");
+        try std.testing.expectEqual(tcl.TCL_OK, result);
+        const resultObj = tcl.Tcl_GetObjResult(interp);
+        try std.testing.expectEqual(@as(f64, 1.4), try obj.GetFromObj(f64, interp, resultObj));
+    }
+}
+
+test "struct create/set/get multiple" {
+    const s = struct {
+        field0: u32,
+        field1: f64,
+    };
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    var result: c_int = undefined;
+    result = RegisterStruct(s, "test", interp);
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "test::s create instance");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "instance set field0 99 field1 1.4");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "instance get field0 field1");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+    const resultList = tcl.Tcl_GetObjResult(interp);
+
+    var resultObj: obj.Obj = undefined;
+
+    try err.HandleReturn(tcl.Tcl_ListObjIndex(interp, resultList, 0, &resultObj));
+    try std.testing.expectEqual(@as(u32, 99), try obj.GetFromObj(u32, interp, resultObj));
+
+    try err.HandleReturn(tcl.Tcl_ListObjIndex(interp, resultList, 1, &resultObj));
+    try std.testing.expectEqual(@as(f64, 1.4), try obj.GetFromObj(f64, interp, resultObj));
 }
