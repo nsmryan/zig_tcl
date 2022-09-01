@@ -5,6 +5,8 @@ const err = @import("err.zig");
 
 const obj = @import("obj.zig");
 
+const call = @import("call.zig");
+
 const tcl = @import("tcl.zig");
 
 pub const StructCmds = enum {
@@ -14,6 +16,7 @@ pub const StructCmds = enum {
 pub const StructInstanceCmds = enum {
     get,
     set,
+    call,
 };
 
 pub fn StructCommand(comptime strt: type) type {
@@ -70,6 +73,10 @@ pub fn StructCommand(comptime strt: type) type {
 
                 .set => {
                     return StructSetFieldCmd(strt_ptr, interp, objc, objv);
+                },
+
+                .call => {
+                    return StructCallCmd(strt_ptr, interp, objc, objv);
                 },
             }
             obj.SetStrResult(interp, "Unexpected subcommand!");
@@ -145,6 +152,63 @@ pub fn StructCommand(comptime strt: type) type {
                     obj.SetStrResult(interp, "One or more field names not found in struct set!");
                     return tcl.TCL_ERROR;
                 }
+            }
+
+            return tcl.TCL_OK;
+        }
+
+        pub fn StructCallCmd(ptr: *strt, interp: obj.Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) c_int {
+            if (objc < 3) {
+                tcl.Tcl_WrongNumArgs(interp, objc, objv, "call name [args]");
+                return tcl.TCL_ERROR;
+            }
+
+            var length: c_int = undefined;
+            const name = tcl.Tcl_GetStringFromObj(objv[2], &length);
+
+            var found: bool = false;
+            // Search for a decl of the given name.
+            inline for (@typeInfo(strt).Struct.decls) |decl| {
+                std.debug.print("decl {s}\n", .{decl.name});
+                // Ignore privatve decls
+                if (!decl.is_pub) {
+                    continue;
+                }
+
+                // If the name matches attempt to call it.
+                if (std.mem.eql(u8, name[0..@intCast(usize, length)], decl.name)) {
+                    std.debug.print("decl found\n", .{});
+                    const field = @field(ptr.*, decl.name);
+                    const field_type = @TypeOf(field);
+                    const field_info = @typeInfo(field_type);
+
+                    // We can only call simple functions with a first argument that points to the structure.
+                    if (field_info == .BoundFn) {
+                        if (field_info.BoundFn.is_generic) {
+                            @compileError("Cannot call generic function");
+                        }
+
+                        if (field_info.BoundFn.is_var_args) {
+                            @compileError("Cannot call variadic function");
+                        }
+
+                        const first_arg = field_info.BoundFn.args[0];
+                        if (first_arg.arg_type) |arg_type| {
+                            if (@typeInfo(arg_type) == .Pointer and std.meta.Child(arg_type) == strt) {
+                                std.debug.print("{}\n", .{field_type});
+                                call.CallDecl(field, interp, @ptrCast(tcl.ClientData, ptr), objc, objv) catch |errResult| return err.ErrorToInt(errResult);
+                                found = true;
+                            }
+                        }
+                    }
+
+                    break;
+                }
+            }
+
+            if (!found) {
+                obj.SetStrResult(interp, "One or more field names not found in struct call!");
+                return tcl.TCL_ERROR;
             }
 
             return tcl.TCL_OK;
@@ -249,4 +313,36 @@ test "struct create/set/get multiple" {
 
     try err.HandleReturn(tcl.Tcl_ListObjIndex(interp, resultList, 1, &resultObj));
     try std.testing.expectEqual(@as(f64, 1.4), try obj.GetFromObj(f64, interp, resultObj));
+}
+
+test "struct create/call" {
+    const s = struct {
+        field0: u32,
+
+        pub fn decl1(self: *@This(), newFieldValue: u8) void {
+            self.field0 = newFieldValue;
+        }
+    };
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    var result: c_int = undefined;
+    result = RegisterStruct(s, "test", interp);
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "test::s create instance");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "instance set field0 99");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "instance call decl1 100");
+    const resultStr = tcl.Tcl_GetStringFromObj(tcl.Tcl_GetObjResult(interp), null);
+    std.debug.print("result string {s}\n", .{resultStr});
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "instance get field0");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+    const resultObj = tcl.Tcl_GetObjResult(interp);
+    try std.testing.expectEqual(@as(u8, 100), try obj.GetFromObj(u8, interp, resultObj));
 }
