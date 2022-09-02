@@ -51,7 +51,8 @@ pub fn CallDecl(comptime function: anytype, interp: obj.Interp, cdata: tcl.Clien
 
     // The arguents will have an extra field for the cdata to pass into.
     // The objc starts with the command and and proc name.
-    if (args.len + 1 != objc) {
+    if (args.len + 2 != objc) {
+        std.debug.print("objc error {} {}\n", .{ args.len, objc });
         return err.TclError.TCL_ERROR;
     }
 
@@ -61,19 +62,22 @@ pub fn CallDecl(comptime function: anytype, interp: obj.Interp, cdata: tcl.Clien
     const self_type = func_info.args[0].arg_type.?;
     args[0] = @ptrCast(self_type, @alignCast(@alignOf(self_type), cdata));
 
-    comptime var argIndex = 1;
+    comptime var argIndex = 2;
     inline while (argIndex < args.len) : (argIndex += 1) {
-        args[argIndex] = try obj.GetFromObj(@TypeOf(args[argIndex]), interp, objv[argIndex + 1]);
+        args[argIndex] = try obj.GetFromObj(@TypeOf(args[argIndex]), interp, objv[argIndex + 2]);
     }
 
+    std.debug.print("calling \n", .{});
     return CallZigFunction(function, interp, args);
 }
 
-fn FuncInfo(comptime func_info: std.builtin.TypeInfo) std.builtin.TypeInfo.Fn {
+pub fn FuncInfo(comptime func_info: std.builtin.TypeInfo) std.builtin.TypeInfo.Fn {
     if (func_info == .Fn) {
         return func_info.Fn;
-    } else {
+    } else if (func_info == .BoundFn) {
         return func_info.BoundFn;
+    } else {
+        @compileError("Cannot get function info from a non-function!");
     }
 }
 
@@ -100,20 +104,64 @@ pub fn CallZigFunction(comptime function: anytype, interp: obj.Interp, args: any
                     obj.SetObjResult(interp, obj.NewStringObj(@errorName(errResult)));
                 };
             }
+            std.debug.print("error return\n", .{});
         } else {
+            std.debug.print("No error return\n", .{});
+            // NOTE called with help from Tetralux and Der Teufel
             // If no error return, just call and convert result to a TCL object.
-            std.debug.print("args      {}\n", .{args});
-            std.debug.print("len       {}\n", .{args.len});
-            std.debug.print("args      {}\n", .{FuncInfo(func_info).args.len});
-            std.debug.print("type      {}\n", .{@TypeOf(function)});
-
             const result = @call(.{}, function, args);
+            std.debug.print("{}\n", .{result});
             obj.SetObjResult(interp, try obj.ToObj(result));
         }
     } else {
+        std.debug.print("No return\n", .{});
         // If no return, just call the function.
         @call(.{}, function, args);
     }
+}
+
+pub fn ArgsTuple(comptime Function: type) type {
+    const info = @typeInfo(Function);
+    //if (info != .Fn)
+    //@compileError("ArgsTuple expects a function type");
+
+    const function_info = FuncInfo(info);
+    if (function_info.is_generic)
+        @compileError("Cannot create ArgsTuple for generic function");
+    if (function_info.is_var_args)
+        @compileError("Cannot create ArgsTuple for variadic function");
+
+    var argument_field_list: [function_info.args.len]type = undefined;
+    inline for (function_info.args) |arg, i| {
+        const T = arg.arg_type.?;
+        argument_field_list[i] = T;
+    }
+
+    return CreateUniqueTuple(argument_field_list.len, argument_field_list);
+}
+
+fn CreateUniqueTuple(comptime N: comptime_int, comptime types: [N]type) type {
+    var tuple_fields: [types.len]std.builtin.Type.StructField = undefined;
+    inline for (types) |T, i| {
+        @setEvalBranchQuota(10_000);
+        var num_buf: [128]u8 = undefined;
+        tuple_fields[i] = .{
+            .name = std.fmt.bufPrint(&num_buf, "{d}", .{i}) catch unreachable,
+            .field_type = T,
+            .default_value = null,
+            .is_comptime = false,
+            .alignment = if (@sizeOf(T) > 0) @alignOf(T) else 0,
+        };
+    }
+
+    return @Type(.{
+        .Struct = .{
+            .is_tuple = true,
+            .layout = .Auto,
+            .decls = &.{},
+            .fields = &tuple_fields,
+        },
+    });
 }
 
 test "call zig function with return" {
@@ -161,50 +209,6 @@ test "call decl" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     var instance: s = s.init();
-    var objv: [3][*c]tcl.Tcl_Obj = .{ try obj.ToObj("obj"), try obj.ToObj("func"), try obj.ToObj(@as(u32, 2)) };
+    var objv: [4][*c]tcl.Tcl_Obj = .{ try obj.ToObj("obj"), try obj.ToObj("call"), try obj.ToObj("func"), try obj.ToObj(@as(u32, 2)) };
     try CallDecl(s.func, interp, &instance, objv.len, &objv);
-}
-
-pub fn ArgsTuple(comptime Function: type) type {
-    const info = @typeInfo(Function);
-    //if (info != .Fn)
-    //@compileError("ArgsTuple expects a function type");
-
-    const function_info = FuncInfo(info);
-    if (function_info.is_generic)
-        @compileError("Cannot create ArgsTuple for generic function");
-    if (function_info.is_var_args)
-        @compileError("Cannot create ArgsTuple for variadic function");
-
-    var argument_field_list: [function_info.args.len]type = undefined;
-    inline for (function_info.args) |arg, i| {
-        const T = arg.arg_type.?;
-        argument_field_list[i] = T;
-    }
-
-    return CreateUniqueTuple(argument_field_list.len, argument_field_list);
-}
-
-fn CreateUniqueTuple(comptime N: comptime_int, comptime types: [N]type) type {
-    var tuple_fields: [types.len]std.builtin.Type.StructField = undefined;
-    inline for (types) |T, i| {
-        @setEvalBranchQuota(10_000);
-        var num_buf: [128]u8 = undefined;
-        tuple_fields[i] = .{
-            .name = std.fmt.bufPrint(&num_buf, "{d}", .{i}) catch unreachable,
-            .field_type = T,
-            .default_value = null,
-            .is_comptime = false,
-            .alignment = if (@sizeOf(T) > 0) @alignOf(T) else 0,
-        };
-    }
-
-    return @Type(.{
-        .Struct = .{
-            .is_tuple = true,
-            .layout = .Auto,
-            .decls = &.{},
-            .fields = &tuple_fields,
-        },
-    });
 }

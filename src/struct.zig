@@ -178,29 +178,34 @@ pub fn StructCommand(comptime strt: type) type {
                 // If the name matches attempt to call it.
                 if (std.mem.eql(u8, name[0..@intCast(usize, length)], decl.name)) {
                     std.debug.print("decl found\n", .{});
-                    const field = @field(ptr.*, decl.name);
+                    const field = @field(strt, decl.name);
                     const field_type = @TypeOf(field);
-                    const field_info = @typeInfo(field_type);
+                    const field_info = call.FuncInfo(@typeInfo(field_type));
 
                     // We can only call simple functions with a first argument that points to the structure.
-                    if (field_info == .BoundFn) {
-                        if (field_info.BoundFn.is_generic) {
-                            @compileError("Cannot call generic function");
-                        }
-
-                        if (field_info.BoundFn.is_var_args) {
-                            @compileError("Cannot call variadic function");
-                        }
-
-                        const first_arg = field_info.BoundFn.args[0];
-                        if (first_arg.arg_type) |arg_type| {
-                            if (@typeInfo(arg_type) == .Pointer and std.meta.Child(arg_type) == strt) {
-                                std.debug.print("field type {}\n", .{field_type});
-                                call.CallDecl(field, interp, @ptrCast(tcl.ClientData, ptr), objc, objv) catch |errResult| return err.ErrorToInt(errResult);
-                                found = true;
-                            }
-                        }
+                    if (field_info.is_generic) {
+                        @compileError("Cannot call generic function");
                     }
+
+                    if (field_info.is_var_args) {
+                        @compileError("Cannot call variadic function");
+                    }
+
+                    const first_arg = field_info.args[0];
+                    if (first_arg.arg_type) |arg_type| {
+                        if (@typeInfo(arg_type) == .Pointer and std.meta.Child(arg_type) == strt) {
+                            std.debug.print("field type: {}\n", .{field_type});
+                            call.CallDecl(field, interp, @ptrCast(tcl.ClientData, ptr), objc, objv) catch |errResult| return err.ErrorToInt(errResult);
+                        } else {
+                            obj.SetStrResult(interp, "Decl does not take a pointer to the struct as its first argument!");
+                            return tcl.TCL_ERROR;
+                        }
+                    } else {
+                        obj.SetStrResult(interp, "Function does not have a first argument!");
+                        return tcl.TCL_ERROR;
+                    }
+
+                    found = true;
 
                     break;
                 }
@@ -332,19 +337,34 @@ test "struct create/call" {
     result = RegisterStruct(s, "test", interp);
     try std.testing.expectEqual(tcl.TCL_OK, result);
 
-    //result = tcl.Tcl_Eval(interp, "test::s create instance");
-    //try std.testing.expectEqual(tcl.TCL_OK, result);
+    result = tcl.Tcl_Eval(interp, "test::s create instance");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
 
-    //result = tcl.Tcl_Eval(interp, "instance set field0 99");
-    //try std.testing.expectEqual(tcl.TCL_OK, result);
+    result = tcl.Tcl_Eval(interp, "instance set field0 99");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
 
-    //result = tcl.Tcl_Eval(interp, "instance call decl1 100");
-    //const resultStr = tcl.Tcl_GetStringFromObj(tcl.Tcl_GetObjResult(interp), null);
-    //std.debug.print("result string {s}\n", .{resultStr});
-    //try std.testing.expectEqual(tcl.TCL_OK, result);
+    {
+        result = tcl.Tcl_Eval(interp, "instance get field0");
+        try std.testing.expectEqual(tcl.TCL_OK, result);
+        const resultObj = tcl.Tcl_GetObjResult(interp);
+        try std.testing.expectEqual(@as(u8, 99), try obj.GetFromObj(u8, interp, resultObj));
+    }
 
-    //result = tcl.Tcl_Eval(interp, "instance get field0");
-    //try std.testing.expectEqual(tcl.TCL_OK, result);
-    //const resultObj = tcl.Tcl_GetObjResult(interp);
-    //try std.testing.expectEqual(@as(u8, 100), try obj.GetFromObj(u8, interp, resultObj));
+    {
+        result = tcl.Tcl_Eval(interp, "instance call decl1 200");
+        const resultStr = tcl.Tcl_GetStringFromObj(tcl.Tcl_GetObjResult(interp), null);
+        std.debug.print("result string {s}\n", .{resultStr});
+        try std.testing.expectEqual(tcl.TCL_OK, result);
+        const resultObj = tcl.Tcl_GetObjResult(interp);
+        try std.testing.expectEqual(@as(u8, 99), try obj.GetFromObj(u8, interp, resultObj));
+    }
+
+    {
+        result = tcl.Tcl_Eval(interp, "instance get field0");
+        try std.testing.expectEqual(tcl.TCL_OK, result);
+        const resultStr = tcl.Tcl_GetStringFromObj(tcl.Tcl_GetObjResult(interp), null);
+        std.debug.print("result string {s}\n", .{resultStr});
+        const resultObj = tcl.Tcl_GetObjResult(interp);
+        try std.testing.expectEqual(@as(u8, 200), try obj.GetFromObj(u8, interp, resultObj));
+    }
 }
