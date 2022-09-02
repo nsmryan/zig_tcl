@@ -47,7 +47,7 @@ pub fn CallDecl(comptime function: anytype, interp: obj.Interp, cdata: tcl.Clien
     //    @compileError("Cannot wrap a decl that is not a function!");
     //}
 
-    var args: std.meta.ArgsTuple(@TypeOf(function)) = undefined;
+    var args: ArgsTuple(@TypeOf(function)) = undefined;
 
     // The arguents will have an extra field for the cdata to pass into.
     // The objc starts with the command and and proc name.
@@ -57,7 +57,8 @@ pub fn CallDecl(comptime function: anytype, interp: obj.Interp, cdata: tcl.Clien
 
     // Fill in the first argument using cdata.
     // NOTE this assumes a pointer for now- perhaps a 'self' that is not a pointer could also be supported.
-    const self_type = @typeInfo(@TypeOf(function)).Fn.args[0].arg_type.?;
+    const func_info = FuncInfo(@typeInfo(@TypeOf(function)));
+    const self_type = func_info.args[0].arg_type.?;
     args[0] = @ptrCast(self_type, @alignCast(@alignOf(self_type), cdata));
 
     comptime var argIndex = 1;
@@ -68,9 +69,18 @@ pub fn CallDecl(comptime function: anytype, interp: obj.Interp, cdata: tcl.Clien
     return CallZigFunction(function, interp, args);
 }
 
+fn FuncInfo(comptime func_info: std.builtin.TypeInfo) std.builtin.TypeInfo.Fn {
+    if (func_info == .Fn) {
+        return func_info.Fn;
+    } else {
+        return func_info.BoundFn;
+    }
+}
+
 pub fn CallZigFunction(comptime function: anytype, interp: obj.Interp, args: anytype) err.TclError!void {
     const func_info = @typeInfo(@TypeOf(function));
-    if (func_info.Fn.return_type) |typ| {
+    const return_type = FuncInfo(func_info).return_type;
+    if (return_type) |typ| {
         // If the function has a return value, check if it is an error.
         if (@typeInfo(typ) == .ErrorUnion) {
             if (@typeInfo(@typeInfo(typ).ErrorUnion.payload) != .Void) {
@@ -92,7 +102,13 @@ pub fn CallZigFunction(comptime function: anytype, interp: obj.Interp, args: any
             }
         } else {
             // If no error return, just call and convert result to a TCL object.
-            obj.SetObjResult(interp, try obj.ToObj(@call(.{}, function, args)));
+            std.debug.print("args      {}\n", .{args});
+            std.debug.print("len       {}\n", .{args.len});
+            std.debug.print("args      {}\n", .{FuncInfo(func_info).args.len});
+            std.debug.print("type      {}\n", .{@TypeOf(function)});
+
+            const result = @call(.{}, function, args);
+            obj.SetObjResult(interp, try obj.ToObj(result));
         }
     } else {
         // If no return, just call the function.
@@ -147,4 +163,48 @@ test "call decl" {
     var instance: s = s.init();
     var objv: [3][*c]tcl.Tcl_Obj = .{ try obj.ToObj("obj"), try obj.ToObj("func"), try obj.ToObj(@as(u32, 2)) };
     try CallDecl(s.func, interp, &instance, objv.len, &objv);
+}
+
+pub fn ArgsTuple(comptime Function: type) type {
+    const info = @typeInfo(Function);
+    //if (info != .Fn)
+    //@compileError("ArgsTuple expects a function type");
+
+    const function_info = FuncInfo(info);
+    if (function_info.is_generic)
+        @compileError("Cannot create ArgsTuple for generic function");
+    if (function_info.is_var_args)
+        @compileError("Cannot create ArgsTuple for variadic function");
+
+    var argument_field_list: [function_info.args.len]type = undefined;
+    inline for (function_info.args) |arg, i| {
+        const T = arg.arg_type.?;
+        argument_field_list[i] = T;
+    }
+
+    return CreateUniqueTuple(argument_field_list.len, argument_field_list);
+}
+
+fn CreateUniqueTuple(comptime N: comptime_int, comptime types: [N]type) type {
+    var tuple_fields: [types.len]std.builtin.Type.StructField = undefined;
+    inline for (types) |T, i| {
+        @setEvalBranchQuota(10_000);
+        var num_buf: [128]u8 = undefined;
+        tuple_fields[i] = .{
+            .name = std.fmt.bufPrint(&num_buf, "{d}", .{i}) catch unreachable,
+            .field_type = T,
+            .default_value = null,
+            .is_comptime = false,
+            .alignment = if (@sizeOf(T) > 0) @alignOf(T) else 0,
+        };
+    }
+
+    return @Type(.{
+        .Struct = .{
+            .is_tuple = true,
+            .layout = .Auto,
+            .decls = &.{},
+            .fields = &tuple_fields,
+        },
+    });
 }
