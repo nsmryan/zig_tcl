@@ -262,3 +262,30 @@ test "enum call" {
     try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e call decl2"));
     try std.testing.expectEqual(@as(u8, 1), try obj.GetFromObj(u8, interp, tcl.Tcl_GetObjResult(interp)));
 }
+
+test "enum name/value" {
+    const e = enum(u8) {
+        v0,
+        v1,
+
+        pub fn decl1() u8 {
+            return 0;
+        }
+
+        pub fn decl2() @This() {
+            return .v1;
+        }
+    };
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    var result: c_int = undefined;
+    result = RegisterEnum(e, "test", interp);
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e value v0"));
+    try std.testing.expectEqual(@as(u8, 0), try obj.GetFromObj(u8, interp, tcl.Tcl_GetObjResult(interp)));
+
+    try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e name 1"));
+    try std.testing.expectEqualSlices(u8, "v1", try obj.GetStringFromObj(tcl.Tcl_GetObjResult(interp)));
+}
