@@ -13,6 +13,9 @@ usingnamespace call;
 pub const strt = @import("struct.zig");
 usingnamespace strt;
 
+pub const enm = @import("enum.zig");
+usingnamespace enm;
+
 pub const tcl = @import("tcl.zig");
 usingnamespace tcl;
 
