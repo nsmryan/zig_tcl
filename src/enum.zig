@@ -119,6 +119,7 @@ pub fn EnumVariantCommand(comptime enm: type, comptime variantName: []const u8, 
 
             if (objv.len == 1) {
                 obj.SetObjResult(interp, obj.NewIntObj(@as(isize, value)));
+                return;
             }
 
             switch (try obj.GetIndexFromObj(EnumVariantCmds, interp, objv[1], "commands")) {
@@ -228,6 +229,10 @@ test "enum variant call" {
     try std.testing.expectEqual(@as(u8, 0), try obj.GetFromObj(u8, interp, tcl.Tcl_GetObjResult(interp)));
 
     try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e::v1 call decl2"));
+    try std.testing.expectEqual(@as(u8, 1), try obj.GetFromObj(u8, interp, tcl.Tcl_GetObjResult(interp)));
+
+    // The enum itself returns its value.
+    try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e::v1"));
     try std.testing.expectEqual(@as(u8, 1), try obj.GetFromObj(u8, interp, tcl.Tcl_GetObjResult(interp)));
 }
 
