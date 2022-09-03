@@ -61,7 +61,6 @@ pub fn StructCommand(comptime strt: type) type {
 
                     const name = try obj.GetStringFromObj(objv[2]);
 
-                    var found: bool = false;
                     // Search for a decl of the given name.
                     comptime var decls = std.meta.declarations(strt);
                     inline for (decls) |decl| {
@@ -77,19 +76,12 @@ pub fn StructCommand(comptime strt: type) type {
 
                             try utils.CallableFunction(field_info, interp);
                             try call.CallDecl(field, interp, @intCast(c_int, objv.len), objv.ptr);
-
-                            found = true;
-
-                            break;
+                            return;
                         }
                     }
 
-                    if (!found) {
-                        obj.SetStrResult(interp, "One or more field names not found in struct call!");
-                        return err.TclError.TCL_ERROR;
-                    }
-
-                    return;
+                    obj.SetStrResult(interp, "One or more field names not found in struct call!");
+                    return err.TclError.TCL_ERROR;
                 },
             }
 
@@ -197,7 +189,6 @@ pub fn StructCommand(comptime strt: type) type {
 
             const name = try obj.GetStringFromObj(objv[2]);
 
-            var found: bool = false;
             // Search for a decl of the given name.
             comptime var decls = std.meta.declarations(strt);
             inline for (decls) |decl| {
@@ -215,16 +206,12 @@ pub fn StructCommand(comptime strt: type) type {
 
                     try call.CallBound(field, interp, @ptrCast(tcl.ClientData, ptr), @intCast(c_int, objv.len), objv.ptr);
 
-                    found = true;
-
-                    break;
+                    return;
                 }
             }
 
-            if (!found) {
-                obj.SetStrResult(interp, "One or more field names not found in struct call!");
-                return err.TclError.TCL_ERROR;
-            }
+            obj.SetStrResult(interp, "One or more field names not found in struct call!");
+            return err.TclError.TCL_ERROR;
         }
 
         pub fn StructGetField(ptr: *strt, comptime fieldName: []const u8) err.TclError!obj.Obj {
