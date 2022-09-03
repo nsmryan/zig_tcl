@@ -169,7 +169,6 @@ pub fn StructCommand(comptime strt: type) type {
             var found: bool = false;
             // Search for a decl of the given name.
             inline for (@typeInfo(strt).Struct.decls) |decl| {
-                std.debug.print("decl {s}\n", .{decl.name});
                 // Ignore privatve decls
                 if (!decl.is_pub) {
                     continue;
@@ -177,7 +176,6 @@ pub fn StructCommand(comptime strt: type) type {
 
                 // If the name matches attempt to call it.
                 if (std.mem.eql(u8, name[0..@intCast(usize, length)], decl.name)) {
-                    std.debug.print("decl found\n", .{});
                     const field = @field(strt, decl.name);
                     const field_type = @TypeOf(field);
                     const field_info = call.FuncInfo(@typeInfo(field_type));
@@ -193,8 +191,7 @@ pub fn StructCommand(comptime strt: type) type {
 
                     const first_arg = field_info.args[0];
                     if (first_arg.arg_type) |arg_type| {
-                        if (@typeInfo(arg_type) == .Pointer and std.meta.Child(arg_type) == strt) {
-                            std.debug.print("field type: {}\n", .{field_type});
+                        if (arg_type == strt or (@typeInfo(arg_type) == .Pointer and std.meta.Child(arg_type) == strt)) {
                             call.CallDecl(field, interp, @ptrCast(tcl.ClientData, ptr), objc, objv) catch |errResult| return err.ErrorToInt(errResult);
                         } else {
                             obj.SetStrResult(interp, "Decl does not take a pointer to the struct as its first argument!");
@@ -322,12 +319,16 @@ test "struct create/set/get multiple" {
 
 test "struct create/call" {
     const s = struct {
-        field0: u8,
+        field0: u32,
 
-        pub fn decl1(self: *@This(), newFieldValue: u8) u8 {
-            const old: u8 = self.field0;
+        pub fn decl1(self: *@This(), newFieldValue: u32) u32 {
+            const old: u32 = self.field0;
             self.field0 = newFieldValue;
             return old;
+        }
+
+        pub fn decl2(self: @This()) u32 {
+            return self.field0;
         }
     };
     var interp = tcl.Tcl_CreateInterp();
@@ -343,28 +344,29 @@ test "struct create/call" {
     result = tcl.Tcl_Eval(interp, "instance set field0 99");
     try std.testing.expectEqual(tcl.TCL_OK, result);
 
-    {
-        result = tcl.Tcl_Eval(interp, "instance get field0");
-        try std.testing.expectEqual(tcl.TCL_OK, result);
-        const resultObj = tcl.Tcl_GetObjResult(interp);
-        try std.testing.expectEqual(@as(u8, 99), try obj.GetFromObj(u8, interp, resultObj));
-    }
+    var cmd_info: tcl.Tcl_CmdInfo = undefined;
+    _ = tcl.Tcl_GetCommandInfo(interp, "instance", &cmd_info);
 
     {
         result = tcl.Tcl_Eval(interp, "instance call decl1 200");
-        const resultStr = tcl.Tcl_GetStringFromObj(tcl.Tcl_GetObjResult(interp), null);
-        std.debug.print("result string {s}\n", .{resultStr});
         try std.testing.expectEqual(tcl.TCL_OK, result);
         const resultObj = tcl.Tcl_GetObjResult(interp);
-        try std.testing.expectEqual(@as(u8, 99), try obj.GetFromObj(u8, interp, resultObj));
+        try std.testing.expectEqual(@as(u32, 99), try obj.GetFromObj(u32, interp, resultObj));
     }
 
     {
         result = tcl.Tcl_Eval(interp, "instance get field0");
         try std.testing.expectEqual(tcl.TCL_OK, result);
+        const resultObj = tcl.Tcl_GetObjResult(interp);
+        try std.testing.expectEqual(@as(u32, 200), try obj.GetFromObj(u32, interp, resultObj));
+    }
+
+    {
+        result = tcl.Tcl_Eval(interp, "instance call decl2");
         const resultStr = tcl.Tcl_GetStringFromObj(tcl.Tcl_GetObjResult(interp), null);
         std.debug.print("result string {s}\n", .{resultStr});
+        try std.testing.expectEqual(tcl.TCL_OK, result);
         const resultObj = tcl.Tcl_GetObjResult(interp);
-        try std.testing.expectEqual(@as(u8, 200), try obj.GetFromObj(u8, interp, resultObj));
+        try std.testing.expectEqual(@as(u32, 200), try obj.GetFromObj(u32, interp, resultObj));
     }
 }

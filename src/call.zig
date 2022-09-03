@@ -52,22 +52,25 @@ pub fn CallDecl(comptime function: anytype, interp: obj.Interp, cdata: tcl.Clien
     // The arguents will have an extra field for the cdata to pass into.
     // The objc starts with the command and and proc name.
     if (args.len + 2 != objc) {
-        std.debug.print("objc error {} {}\n", .{ args.len, objc });
+        obj.SetObjResult(interp, obj.NewStringObj("Incorrect number of arguments when calling a decl"));
         return err.TclError.TCL_ERROR;
     }
 
     // Fill in the first argument using cdata.
-    // NOTE this assumes a pointer for now- perhaps a 'self' that is not a pointer could also be supported.
     const func_info = FuncInfo(@typeInfo(@TypeOf(function)));
     const self_type = func_info.args[0].arg_type.?;
-    args[0] = @ptrCast(self_type, @alignCast(@alignOf(self_type), cdata));
+    if (@typeInfo(self_type) == .Pointer) {
+        args[0] = @ptrCast(self_type, @alignCast(@alignOf(self_type), cdata));
+    } else {
+        // For non-pointers, dereference cdata to get a copy of the value.
+        args[0] = @ptrCast(*self_type, @alignCast(@alignOf(self_type), cdata)).*;
+    }
 
-    comptime var argIndex = 2;
+    comptime var argIndex = 1;
     inline while (argIndex < args.len) : (argIndex += 1) {
         args[argIndex] = try obj.GetFromObj(@TypeOf(args[argIndex]), interp, objv[argIndex + 2]);
     }
 
-    std.debug.print("calling \n", .{});
     return CallZigFunction(function, interp, args);
 }
 
@@ -104,17 +107,13 @@ pub fn CallZigFunction(comptime function: anytype, interp: obj.Interp, args: any
                     obj.SetObjResult(interp, obj.NewStringObj(@errorName(errResult)));
                 };
             }
-            std.debug.print("error return\n", .{});
         } else {
-            std.debug.print("No error return\n", .{});
             // NOTE called with help from Tetralux and Der Teufel
             // If no error return, just call and convert result to a TCL object.
             const result = @call(.{}, function, args);
-            std.debug.print("{}\n", .{result});
             obj.SetObjResult(interp, try obj.ToObj(result));
         }
     } else {
-        std.debug.print("No return\n", .{});
         // If no return, just call the function.
         @call(.{}, function, args);
     }
