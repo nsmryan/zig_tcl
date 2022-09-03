@@ -18,6 +18,7 @@ pub const StructInstanceCmds = enum {
     get,
     set,
     call,
+    bytes,
 };
 
 pub fn RegisterStruct(comptime strt: type, comptime pkg: []const u8, interp: obj.Interp) c_int {
@@ -129,6 +130,10 @@ pub fn StructCommand(comptime strt: type) type {
                 .call => {
                     return err.TclResult(StructCallCmd(strt_ptr, interp, obj.ObjSlice(objc, objv)));
                 },
+
+                .bytes => {
+                    return err.TclResult(StructBytesCmd(strt_ptr, interp, obj.ObjSlice(objc, objv)));
+                },
             }
             obj.SetStrResult(interp, "Unexpected subcommand!");
             return tcl.TCL_ERROR;
@@ -236,6 +241,11 @@ pub fn StructCommand(comptime strt: type) type {
 
             obj.SetStrResult(interp, "One or more field names not found in struct call!");
             return err.TclError.TCL_ERROR;
+        }
+
+        pub fn StructBytesCmd(ptr: *strt, interp: obj.Interp, objv: []const obj.Obj) err.TclError!void {
+            _ = objv;
+            obj.SetObjResult(interp, try obj.ToObj(ptr.*));
         }
 
         pub fn StructGetField(ptr: *strt, comptime fieldName: []const u8) err.TclError!obj.Obj {
@@ -433,4 +443,33 @@ test "struct fields" {
 
     try err.HandleReturn(tcl.Tcl_ListObjIndex(interp, resultList, 3, &resultObj));
     try std.testing.expectEqualSlices(u8, "f64", try obj.GetStringFromObj(resultObj));
+}
+
+test "struct bytes" {
+    const s = struct {
+        field0: u8,
+        field1: f64,
+    };
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    var result: c_int = undefined;
+    result = RegisterStruct(s, "test", interp);
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "test::s create instance");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "instance bytes");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    var byteObj = tcl.Tcl_GetObjResult(interp);
+
+    var length: c_int = undefined;
+    var bytes = tcl.Tcl_GetByteArrayFromObj(byteObj, &length);
+
+    var cmdInfo: tcl.Tcl_CmdInfo = undefined;
+    _ = tcl.Tcl_GetCommandInfo(interp, "instance", &cmdInfo);
+
+    try std.testing.expectEqualSlices(u8, bytes[0..@intCast(usize, length)], @ptrCast([*]u8, cmdInfo.objClientData)[0..@sizeOf(s)]);
 }
