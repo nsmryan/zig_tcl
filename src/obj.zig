@@ -116,7 +116,7 @@ pub fn NewListWithCapacity(capacity: c_int) Obj {
 
 // Tcl_NewListObj wrapper
 pub fn NewListObj(objs: []Obj) Obj {
-    return tcl.Tcl_NewListObj(objs.len, objs.ptr);
+    return tcl.Tcl_NewListObj(@intCast(c_int, objs.len), objs.ptr);
 }
 
 // Tcl_SetObjResult wrapper

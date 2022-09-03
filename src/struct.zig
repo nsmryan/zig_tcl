@@ -11,6 +11,7 @@ const tcl = @import("tcl.zig");
 pub const StructCmds = enum {
     create,
     call,
+    fields,
 };
 
 pub const StructInstanceCmds = enum {
@@ -88,6 +89,18 @@ pub fn StructCommand(comptime strt: type) type {
                     obj.SetStrResult(interp, "One or more field names not found in struct call!");
                     return err.TclError.TCL_ERROR;
                 },
+
+                .fields => {
+                    comptime var fields = std.meta.fields(strt);
+                    var resultList = obj.NewListObj(&.{});
+                    inline for (fields) |field| {
+                        try obj.ListObjAppendElement(interp, resultList, obj.NewStringObj(field.name));
+                        try obj.ListObjAppendElement(interp, resultList, obj.NewStringObj(@typeName(field.field_type)));
+                    }
+
+                    obj.SetObjResult(interp, resultList);
+                    return;
+                },
             }
 
             obj.SetStrResult(interp, "Unexpected subcommand name when creating struct!");
@@ -134,7 +147,8 @@ pub fn StructCommand(comptime strt: type) type {
                 const name = try obj.GetStringFromObj(objv[index]);
 
                 var found: bool = false;
-                inline for (@typeInfo(strt).Struct.fields) |field| {
+                comptime var fields = std.meta.fields(strt);
+                inline for (fields) |field| {
                     if (std.mem.eql(u8, name, field.name)) {
                         found = true;
                         var fieldObj = try StructGetField(ptr, field.name);
@@ -171,7 +185,8 @@ pub fn StructCommand(comptime strt: type) type {
                 }
 
                 var found: bool = false;
-                inline for (@typeInfo(strt).Struct.fields) |field| {
+                comptime var fields = std.meta.fields(strt);
+                inline for (fields) |field| {
                     if (std.mem.eql(u8, name[0..@intCast(usize, length)], field.name)) {
                         found = true;
                         try StructSetField(ptr, field.name, interp, objv[index + 1]);
@@ -388,4 +403,34 @@ test "struct type call decl" {
 
     const resultObj = tcl.Tcl_GetObjResult(interp);
     try std.testing.expectEqual(@as(u32, 11), try obj.GetFromObj(u32, interp, resultObj));
+}
+
+test "struct fields" {
+    const s = struct {
+        field0: u8,
+        field1: f64,
+    };
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    var result: c_int = undefined;
+    result = RegisterStruct(s, "test", interp);
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::s fields"));
+
+    var resultList = tcl.Tcl_GetObjResult(interp);
+
+    var resultObj: obj.Obj = undefined;
+    try err.HandleReturn(tcl.Tcl_ListObjIndex(interp, resultList, 0, &resultObj));
+    try std.testing.expectEqualSlices(u8, "field0", try obj.GetStringFromObj(resultObj));
+
+    try err.HandleReturn(tcl.Tcl_ListObjIndex(interp, resultList, 1, &resultObj));
+    try std.testing.expectEqualSlices(u8, "u8", try obj.GetStringFromObj(resultObj));
+
+    try err.HandleReturn(tcl.Tcl_ListObjIndex(interp, resultList, 2, &resultObj));
+    try std.testing.expectEqualSlices(u8, "field1", try obj.GetStringFromObj(resultObj));
+
+    try err.HandleReturn(tcl.Tcl_ListObjIndex(interp, resultList, 3, &resultObj));
+    try std.testing.expectEqualSlices(u8, "f64", try obj.GetStringFromObj(resultObj));
 }
