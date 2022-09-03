@@ -38,10 +38,10 @@ pub fn StructCommand(comptime strt: type) type {
                         return err.TclError.TCL_ERROR;
                     }
 
-                    var length: c_int = undefined;
-                    const name = tcl.Tcl_GetStringFromObj(objv[2], &length);
+                    const name = try obj.GetStringFromObj(objv[2]);
+
                     var ptr = tcl.Tcl_Alloc(@sizeOf(strt));
-                    const result = tcl.Tcl_CreateObjCommand(interp, name, StructInstanceCommand, @ptrCast(tcl.ClientData, ptr), TclDeallocateCallback);
+                    const result = tcl.Tcl_CreateObjCommand(interp, name.ptr, StructInstanceCommand, @ptrCast(tcl.ClientData, ptr), TclDeallocateCallback);
                     if (result == null) {
                         obj.SetStrResult(interp, "Could not create command!");
                         return err.TclError.TCL_ERROR;
@@ -136,15 +136,11 @@ pub fn StructCommand(comptime strt: type) type {
             var resultList = obj.NewListWithCapacity(objc - 2);
             var index: usize = 2;
             while (index < objc) : (index += 1) {
-                var length: c_int = undefined;
-                const name = tcl.Tcl_GetStringFromObj(objv[index], &length);
-                if (length == 0) {
-                    continue;
-                }
+                const name = obj.GetStringFromObj(objv[index]) catch |errResult| return err.ErrorToInt(errResult);
 
                 var found: bool = false;
                 inline for (@typeInfo(strt).Struct.fields) |field| {
-                    if (std.mem.eql(u8, name[0..@intCast(usize, length)], field.name)) {
+                    if (std.mem.eql(u8, name, field.name)) {
                         found = true;
                         var fieldObj = StructGetField(ptr, field.name) catch |errResult| return err.TclResult(errResult);
                         const result = tcl.Tcl_ListObjReplace(interp, resultList, @intCast(c_int, index), 1, 1, &fieldObj);
