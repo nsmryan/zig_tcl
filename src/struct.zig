@@ -63,7 +63,8 @@ pub fn StructCommand(comptime strt: type) type {
 
                     var found: bool = false;
                     // Search for a decl of the given name.
-                    inline for (@typeInfo(strt).Struct.decls) |decl| {
+                    comptime var decls = std.meta.declarations(strt);
+                    inline for (decls) |decl| {
                         // Ignore privatve decls
                         if (!decl.is_pub) {
                             continue;
@@ -203,7 +204,8 @@ pub fn StructCommand(comptime strt: type) type {
 
             var found: bool = false;
             // Search for a decl of the given name.
-            inline for (@typeInfo(strt).Struct.decls) |decl| {
+            comptime var decls = std.meta.declarations(strt);
+            inline for (decls) |decl| {
                 // Ignore privatve decls
                 if (!decl.is_pub) {
                     continue;
