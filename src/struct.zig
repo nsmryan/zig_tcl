@@ -3,11 +3,9 @@ const std = @import("std");
 const testing = std.testing;
 
 const err = @import("err.zig");
-
 const obj = @import("obj.zig");
-
 const call = @import("call.zig");
-
+const utils = @import("utils.zig");
 const tcl = @import("tcl.zig");
 
 pub const StructCmds = enum {
@@ -59,8 +57,7 @@ pub fn StructCommand(comptime strt: type) type {
                         return err.TclError.TCL_ERROR;
                     }
 
-                    var length: c_int = undefined;
-                    const name = tcl.Tcl_GetStringFromObj(objv[2], &length);
+                    const name = try obj.GetStringFromObj(objv[2]);
 
                     var found: bool = false;
                     // Search for a decl of the given name.
@@ -71,18 +68,13 @@ pub fn StructCommand(comptime strt: type) type {
                         }
 
                         // If the name matches attempt to call it.
-                        if (std.mem.eql(u8, name[0..@intCast(usize, length)], decl.name)) {
+                        if (std.mem.eql(u8, name, decl.name)) {
                             const field = @field(strt, decl.name);
                             const field_type = @TypeOf(field);
                             const field_info = call.FuncInfo(@typeInfo(field_type));
 
-                            // We can only call simple functions with a first argument that points to the structure.
-                            if (field_info.is_generic) {
-                                @compileError("Cannot call generic function");
-                            }
-
-                            if (field_info.is_var_args) {
-                                @compileError("Cannot call variadic function");
+                            if (!utils.CallableFunction(field_info, interp)) {
+                                return err.TclError.TCL_ERROR;
                             }
 
                             try call.CallDecl(field, interp, @intCast(c_int, objv.len), objv.ptr);
@@ -230,13 +222,8 @@ pub fn StructCommand(comptime strt: type) type {
                     const field_type = @TypeOf(field);
                     const field_info = call.FuncInfo(@typeInfo(field_type));
 
-                    // We can only call simple functions with a first argument that points to the structure.
-                    if (field_info.is_generic) {
-                        @compileError("Cannot call generic function");
-                    }
-
-                    if (field_info.is_var_args) {
-                        @compileError("Cannot call variadic function");
+                    if (!utils.CallableFunction(field_info, interp)) {
+                        return tcl.TCL_ERROR;
                     }
 
                     const first_arg = field_info.args[0];
