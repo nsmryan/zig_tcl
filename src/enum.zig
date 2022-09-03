@@ -12,6 +12,7 @@ pub const EnumCmds = enum {
     call,
     value,
     name,
+    variants,
 };
 
 pub const EnumVariantCmds = enum {
@@ -106,6 +107,23 @@ pub fn EnumCommand(comptime enm: type) type {
                             return;
                         }
                     }
+                },
+
+                .variants => {
+                    if (objv.len < 2) {
+                        tcl.Tcl_WrongNumArgs(interp, @intCast(c_int, objv.len), objv.ptr, "names");
+                        return err.TclError.TCL_ERROR;
+                    }
+
+                    comptime var fields = std.meta.fields(enm);
+                    var resultList = obj.NewListWithCapacity(@intCast(c_int, fields.len));
+
+                    inline for (std.meta.fields(enm)) |field| {
+                        try obj.ListObjAppendElement(interp, resultList, obj.NewStringObj(field.name));
+                        try obj.ListObjAppendElement(interp, resultList, obj.NewIntObj(@intCast(isize, field.value)));
+                    }
+
+                    obj.SetObjResult(interp, resultList);
                 },
             }
         }
@@ -288,4 +306,25 @@ test "enum name/value" {
 
     try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e name 1"));
     try std.testing.expectEqualSlices(u8, "v1", try obj.GetStringFromObj(tcl.Tcl_GetObjResult(interp)));
+}
+
+test "enum variants" {
+    const e = enum(u8) {
+        v0,
+        v1,
+    };
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    var result: c_int = undefined;
+    result = RegisterEnum(e, "test", interp);
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e variants"));
+    var resultList = tcl.Tcl_GetObjResult(interp);
+
+    var resultObj: obj.Obj = undefined;
+    try err.HandleReturn(tcl.Tcl_ListObjIndex(interp, resultList, 0, &resultObj));
+    std.debug.print("{s}\n", .{try obj.GetStringFromObj(resultObj)});
+    try std.testing.expectEqualSlices(u8, "v0", try obj.GetStringFromObj(resultObj));
 }

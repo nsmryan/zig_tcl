@@ -100,7 +100,7 @@ pub fn GetStringFromObj(obj: Obj) err.TclError![]const u8 {
 }
 
 /// Tcl_ListObjAppendElement wrapper.
-pub fn ListObjAppendElement(interp: tcl.Tcl_Interp, list: tcl.Tcl_Obj, obj: tcl.Tcl_Obj) err.TclError!void {
+pub fn ListObjAppendElement(interp: Interp, list: Obj, obj: Obj) err.TclError!void {
     const result = tcl.Tcl_ListObjAppendElement(interp, list, obj);
     return err.HandleReturn(result);
 }
