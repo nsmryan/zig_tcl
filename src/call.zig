@@ -55,8 +55,13 @@ pub fn CallBound(comptime function: anytype, interp: obj.Interp, cdata: tcl.Clie
         return err.TclError.TCL_ERROR;
     }
 
-    // Fill in the first argument using cdata.
     const func_info = FuncInfo(@typeInfo(@TypeOf(function)));
+    if (func_info.args.len == 0) {
+        obj.SetObjResult(interp, obj.NewStringObj("Calling a bound function with 0 arguments!?"));
+        return err.TclError.TCL_ERROR;
+    }
+
+    // Fill in the first argument using cdata.
     const self_type = func_info.args[0].arg_type.?;
     if (@typeInfo(self_type) == .Pointer) {
         args[0] = @ptrCast(self_type, @alignCast(@alignOf(std.meta.Child(self_type)), cdata));

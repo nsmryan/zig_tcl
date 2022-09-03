@@ -40,7 +40,42 @@ pub fn EnumCommand(comptime enm: type) type {
             _ = enm;
 
             switch (try obj.GetIndexFromObj(EnumCmds, interp, objv[1], "commands")) {
-                .call => {},
+                .call => {
+                    if (objv.len < 3) {
+                        obj.WrongNumArgs(interp, objv, "call name [args]");
+                        return err.TclError.TCL_ERROR;
+                    }
+
+                    const name = try obj.GetStringFromObj(objv[2]);
+
+                    // Search for a decl of the given name.
+                    comptime var decls = std.meta.declarations(enm);
+                    inline for (decls) |decl| {
+                        // Ignore privatve decls
+                        if (!decl.is_pub) {
+                            continue;
+                        }
+
+                        // If the name matches attempt to call it.
+                        if (std.mem.eql(u8, name, decl.name)) {
+                            const field = @field(enm, decl.name);
+                            const field_info = call.FuncInfo(@typeInfo(@TypeOf(field)));
+
+                            comptime {
+                                if (!utils.CallableFunction(field_info)) {
+                                    continue;
+                                }
+                            }
+
+                            try call.CallDecl(field, interp, @intCast(c_int, objv.len), objv.ptr);
+
+                            return;
+                        }
+                    }
+
+                    obj.SetStrResult(interp, "One or more field names not found in struct call!");
+                    return err.TclError.TCL_ERROR;
+                },
 
                 .value => {
                     if (objv.len < 3) {
@@ -111,13 +146,17 @@ pub fn EnumVariantCommand(comptime enm: type, comptime variantName: []const u8, 
                             continue;
                         }
 
+                        const field = @field(enm, decl.name);
+                        const field_info = call.FuncInfo(@typeInfo(@TypeOf(field)));
+
+                        comptime {
+                            if (!utils.CallableDecl(enm, field_info)) {
+                                continue;
+                            }
+                        }
+
                         // If the name matches attempt to call it.
                         if (std.mem.eql(u8, name, decl.name)) {
-                            const field = @field(enm, decl.name);
-                            const field_info = call.FuncInfo(@typeInfo(@TypeOf(field)));
-
-                            try utils.CallableDecl(enm, field_info, interp);
-
                             var enumValue = @intToEnum(enm, value);
                             try call.CallBound(field, interp, @ptrCast(tcl.ClientData, &enumValue), @intCast(c_int, objv.len), objv.ptr);
 
@@ -165,7 +204,7 @@ test "enum variant name/value" {
     try std.testing.expectEqualSlices(u8, "v2", try obj.GetStringFromObj(tcl.Tcl_GetObjResult(interp)));
 }
 
-test "enum variant name/value" {
+test "enum variant call" {
     const e = enum(u8) {
         v0,
         v1,
@@ -189,5 +228,32 @@ test "enum variant name/value" {
     try std.testing.expectEqual(@as(u8, 0), try obj.GetFromObj(u8, interp, tcl.Tcl_GetObjResult(interp)));
 
     try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e::v1 call decl2"));
+    try std.testing.expectEqual(@as(u8, 1), try obj.GetFromObj(u8, interp, tcl.Tcl_GetObjResult(interp)));
+}
+
+test "enum call" {
+    const e = enum(u8) {
+        v0,
+        v1,
+
+        pub fn decl1() u8 {
+            return 0;
+        }
+
+        pub fn decl2() @This() {
+            return .v1;
+        }
+    };
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    var result: c_int = undefined;
+    result = RegisterEnum(e, "test", interp);
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e call decl1"));
+    try std.testing.expectEqual(@as(u8, 0), try obj.GetFromObj(u8, interp, tcl.Tcl_GetObjResult(interp)));
+
+    try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e call decl2"));
     try std.testing.expectEqual(@as(u8, 1), try obj.GetFromObj(u8, interp, tcl.Tcl_GetObjResult(interp)));
 }

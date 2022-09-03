@@ -69,12 +69,17 @@ pub fn StructCommand(comptime strt: type) type {
                             continue;
                         }
 
+                        const field = @field(strt, decl.name);
+                        const field_info = call.FuncInfo(@typeInfo(@TypeOf(field)));
+
+                        comptime {
+                            if (!utils.CallableFunction(field_info)) {
+                                continue;
+                            }
+                        }
+
                         // If the name matches attempt to call it.
                         if (std.mem.eql(u8, name, decl.name)) {
-                            const field = @field(strt, decl.name);
-                            const field_info = call.FuncInfo(@typeInfo(@TypeOf(field)));
-
-                            try utils.CallableFunction(field_info, interp);
                             try call.CallDecl(field, interp, @intCast(c_int, objv.len), objv.ptr);
                             return;
                         }
@@ -197,13 +202,17 @@ pub fn StructCommand(comptime strt: type) type {
                     continue;
                 }
 
+                const field = @field(strt, decl.name);
+                const field_info = call.FuncInfo(@typeInfo(@TypeOf(field)));
+
+                comptime {
+                    if (!utils.CallableDecl(strt, field_info)) {
+                        continue;
+                    }
+                }
+
                 // If the name matches attempt to call it.
                 if (std.mem.eql(u8, name, decl.name)) {
-                    const field = @field(strt, decl.name);
-                    const field_info = call.FuncInfo(@typeInfo(@TypeOf(field)));
-
-                    try utils.CallableDecl(strt, field_info, interp);
-
                     try call.CallBound(field, interp, @ptrCast(tcl.ClientData, ptr), @intCast(c_int, objv.len), objv.ptr);
 
                     return;
