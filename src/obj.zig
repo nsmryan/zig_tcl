@@ -60,10 +60,6 @@ pub fn NewByteArrayObj(value: anytype) err.TclError!Obj {
     }
 }
 
-pub fn WrongNumArgs(interp: Interp, objv: []const Obj, str: [*c]const u8) err.TclError!void {
-    tcl.Tcl_WrongNumArgs(interp, @intCast(c_int, objv.len), objv.ptr, str);
-}
-
 fn NullTerminatedNames(comptime enm: type) []const [*c]const u8 {
     comptime {
         const commandNames = std.meta.fieldNames(enm);
@@ -86,6 +82,14 @@ pub fn GetIndexFromObj(comptime enm: type, interp: Interp, name: Obj, msg: [*c]c
     } else {
         return err.TclError.TCL_ERROR;
     }
+}
+
+pub fn ObjSlice(objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) []const Obj {
+    return objv[0..@intCast(usize, objc)];
+}
+
+pub fn WrongNumArgs(interp: Interp, objv: []const Obj, errorString: [*c]const u8) void {
+    tcl.Tcl_WrongNumArgs(interp, @intCast(c_int, objv.len), objv.ptr, errorString);
 }
 
 // NOTE Should this slice to length - 1?

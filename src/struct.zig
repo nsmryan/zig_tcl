@@ -19,15 +19,18 @@ pub const StructInstanceCmds = enum {
     call,
 };
 
+pub fn RegisterStruct(comptime strt: type, comptime pkg: []const u8, interp: obj.Interp) c_int {
+    const terminator: [1]u8 = .{0};
+    const cmdName = pkg ++ "::" ++ @typeName(strt) ++ terminator;
+    _ = obj.CreateObjCommand(interp, cmdName, StructCommand(strt).command) catch |errResult| return err.ErrorToInt(errResult);
+
+    return tcl.TCL_OK;
+}
+
 pub fn StructCommand(comptime strt: type) type {
     return struct {
         pub fn command(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objv: []const obj.Obj) err.TclError!void {
             _ = cdata;
-
-            if (objv.len < 2) {
-                try obj.WrongNumArgs(interp, objv, "create name");
-                return err.TclError.TCL_ERROR;
-            }
 
             // NOTE(zig) It is quite nice that std.meta can give us this array. This makes things easier then in C.
             // The following switch is also better then the C version.
@@ -48,7 +51,6 @@ pub fn StructCommand(comptime strt: type) type {
                     } else {
                         return;
                     }
-                    //return tcl.Tcl_CreateObjCommand(interp, name, StructInstanceCommand, @intToPtr(tcl.ClientData, @ptrToInt(ptr)), null);
                 },
 
                 .call => {
@@ -110,43 +112,42 @@ pub fn StructCommand(comptime strt: type) type {
             const cmd = obj.GetIndexFromObj(StructInstanceCmds, interp, objv[1], "commands") catch |errResult| return err.TclResult(errResult);
             switch (cmd) {
                 .get => {
-                    return StructGetFieldCmd(strt_ptr, interp, objc, objv);
+                    return err.TclResult(StructGetFieldCmd(strt_ptr, interp, obj.ObjSlice(objc, objv)));
                 },
 
                 .set => {
-                    return StructSetFieldCmd(strt_ptr, interp, objc, objv);
+                    return err.TclResult(StructSetFieldCmd(strt_ptr, interp, obj.ObjSlice(objc, objv)));
                 },
 
                 .call => {
-                    return StructCallCmd(strt_ptr, interp, objc, objv);
+                    return err.TclResult(StructCallCmd(strt_ptr, interp, obj.ObjSlice(objc, objv)));
                 },
             }
             obj.SetStrResult(interp, "Unexpected subcommand!");
             return tcl.TCL_ERROR;
         }
 
-        pub fn StructGetFieldCmd(ptr: *strt, interp: obj.Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) c_int {
-            if (objc < 3) {
-                tcl.Tcl_WrongNumArgs(interp, objc, objv, "get name ...");
-                return tcl.TCL_ERROR;
+        pub fn StructGetFieldCmd(ptr: *strt, interp: obj.Interp, objv: []const obj.Obj) err.TclError!void {
+            if (objv.len < 3) {
+                obj.WrongNumArgs(interp, objv, "get name ...");
+                return err.TclError.TCL_ERROR;
             }
 
-            // Preallocate enough space for all requested fields, and replace elements
-            // as we go.
-            var resultList = obj.NewListWithCapacity(objc - 2);
+            // Preallocate enough space for all requested fields, and replace elements as we go.
+            var resultList = obj.NewListWithCapacity(@intCast(c_int, objv.len) - 2);
             var index: usize = 2;
-            while (index < objc) : (index += 1) {
-                const name = obj.GetStringFromObj(objv[index]) catch |errResult| return err.ErrorToInt(errResult);
+            while (index < objv.len) : (index += 1) {
+                const name = try obj.GetStringFromObj(objv[index]);
 
                 var found: bool = false;
                 inline for (@typeInfo(strt).Struct.fields) |field| {
                     if (std.mem.eql(u8, name, field.name)) {
                         found = true;
-                        var fieldObj = StructGetField(ptr, field.name) catch |errResult| return err.TclResult(errResult);
+                        var fieldObj = try StructGetField(ptr, field.name);
                         const result = tcl.Tcl_ListObjReplace(interp, resultList, @intCast(c_int, index), 1, 1, &fieldObj);
                         if (result != tcl.TCL_OK) {
                             obj.SetStrResult(interp, "Failed to retrieve a field from a struct!");
-                            return result;
+                            return err.TclError.TCL_ERROR;
                         }
                         break;
                     }
@@ -154,23 +155,21 @@ pub fn StructCommand(comptime strt: type) type {
 
                 if (!found) {
                     obj.SetStrResult(interp, "One or more field names not found in struct get!");
-                    return tcl.TCL_ERROR;
+                    return err.TclError.TCL_ERROR;
                 }
             }
 
             obj.SetObjResult(interp, resultList);
-
-            return tcl.TCL_OK;
         }
 
-        pub fn StructSetFieldCmd(ptr: *strt, interp: obj.Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) c_int {
-            if (objc < 4) {
-                tcl.Tcl_WrongNumArgs(interp, objc, objv, "set name value ... name value");
-                return tcl.TCL_ERROR;
+        pub fn StructSetFieldCmd(ptr: *strt, interp: obj.Interp, objv: []const obj.Obj) err.TclError!void {
+            if (objv.len < 4) {
+                obj.WrongNumArgs(interp, objv, "set name value ... name value");
+                return err.TclError.TCL_ERROR;
             }
 
             var index: usize = 2;
-            while (index < objc) : (index += 2) {
+            while (index < objv.len) : (index += 2) {
                 var length: c_int = undefined;
                 const name = tcl.Tcl_GetStringFromObj(objv[index], &length);
                 if (length == 0) {
@@ -181,24 +180,22 @@ pub fn StructCommand(comptime strt: type) type {
                 inline for (@typeInfo(strt).Struct.fields) |field| {
                     if (std.mem.eql(u8, name[0..@intCast(usize, length)], field.name)) {
                         found = true;
-                        StructSetField(ptr, field.name, interp, objv[index + 1]) catch |errResult| return err.TclResult(errResult);
+                        try StructSetField(ptr, field.name, interp, objv[index + 1]);
                         break;
                     }
                 }
 
                 if (!found) {
                     obj.SetStrResult(interp, "One or more field names not found in struct set!");
-                    return tcl.TCL_ERROR;
+                    return err.TclError.TCL_ERROR;
                 }
             }
-
-            return tcl.TCL_OK;
         }
 
-        pub fn StructCallCmd(ptr: *strt, interp: obj.Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) c_int {
-            if (objc < 3) {
-                tcl.Tcl_WrongNumArgs(interp, objc, objv, "call name [args]");
-                return tcl.TCL_ERROR;
+        pub fn StructCallCmd(ptr: *strt, interp: obj.Interp, objv: []const obj.Obj) err.TclError!void {
+            if (objv.len < 3) {
+                obj.WrongNumArgs(interp, objv, "call name [args]");
+                return err.TclError.TCL_ERROR;
             }
 
             var length: c_int = undefined;
@@ -219,20 +216,20 @@ pub fn StructCommand(comptime strt: type) type {
                     const field_info = call.FuncInfo(@typeInfo(field_type));
 
                     if (!utils.CallableFunction(field_info, interp)) {
-                        return tcl.TCL_ERROR;
+                        return err.TclError.TCL_ERROR;
                     }
 
                     const first_arg = field_info.args[0];
                     if (first_arg.arg_type) |arg_type| {
                         if (arg_type == strt or (@typeInfo(arg_type) == .Pointer and std.meta.Child(arg_type) == strt)) {
-                            call.CallBound(field, interp, @ptrCast(tcl.ClientData, ptr), objc, objv) catch |errResult| return err.ErrorToInt(errResult);
+                            try call.CallBound(field, interp, @ptrCast(tcl.ClientData, ptr), @intCast(c_int, objv.len), objv.ptr);
                         } else {
                             obj.SetStrResult(interp, "Decl does not take a pointer to the struct as its first argument!");
-                            return tcl.TCL_ERROR;
+                            return err.TclError.TCL_ERROR;
                         }
                     } else {
                         obj.SetStrResult(interp, "Function does not have a first argument!");
-                        return tcl.TCL_ERROR;
+                        return err.TclError.TCL_ERROR;
                     }
 
                     found = true;
@@ -243,10 +240,8 @@ pub fn StructCommand(comptime strt: type) type {
 
             if (!found) {
                 obj.SetStrResult(interp, "One or more field names not found in struct call!");
-                return tcl.TCL_ERROR;
+                return err.TclError.TCL_ERROR;
             }
-
-            return tcl.TCL_OK;
         }
 
         pub fn StructGetField(ptr: *strt, comptime fieldName: []const u8) err.TclError!obj.Obj {
@@ -261,14 +256,6 @@ pub fn StructCommand(comptime strt: type) type {
 
 pub fn TclDeallocateCallback(cdata: tcl.ClientData) callconv(.C) void {
     tcl.Tcl_Free(@ptrCast([*c]u8, cdata));
-}
-
-pub fn RegisterStruct(comptime strt: type, comptime pkg: []const u8, interp: obj.Interp) c_int {
-    const terminator: [1]u8 = .{0};
-    const cmdName = pkg ++ "::" ++ @typeName(strt) ++ terminator;
-    _ = obj.CreateObjCommand(interp, cmdName, StructCommand(strt).command) catch |errResult| return err.ErrorToInt(errResult);
-
-    return tcl.TCL_OK;
 }
 
 test "struct create/set/get" {
