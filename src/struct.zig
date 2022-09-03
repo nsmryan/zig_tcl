@@ -199,8 +199,7 @@ pub fn StructCommand(comptime strt: type) type {
                 return err.TclError.TCL_ERROR;
             }
 
-            var length: c_int = undefined;
-            const name = tcl.Tcl_GetStringFromObj(objv[2], &length);
+            const name = try obj.GetStringFromObj(objv[2]);
 
             var found: bool = false;
             // Search for a decl of the given name.
@@ -212,7 +211,7 @@ pub fn StructCommand(comptime strt: type) type {
                 }
 
                 // If the name matches attempt to call it.
-                if (std.mem.eql(u8, name[0..@intCast(usize, length)], decl.name)) {
+                if (std.mem.eql(u8, name, decl.name)) {
                     const field = @field(strt, decl.name);
                     const field_type = @TypeOf(field);
                     const field_info = call.FuncInfo(@typeInfo(field_type));
