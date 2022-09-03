@@ -512,3 +512,25 @@ test "ptr obj" {
 
     try std.testing.expectEqual(&value, try GetFromObj(*u8, interp, try ToObj(&value)));
 }
+
+// TODO these were supposed to compile out called to Tcl_IncrRefCount and decr if they do not
+// exist, but this does not seem to work.
+pub fn IncrRefCount(obj: Obj) void {
+    if (@hasDecl(tcl, "Tcl_IncrRefCount")) {
+        //tcl.Tcl_IncrRefCount(obj);
+        tcl.Tcl_DbIncrRefCount(obj, "", 0);
+    } else {
+        // NOTE __LINE__ and __FILE__ not implemented in Zig: https://github.com/ziglang/zig/issues/2029
+        tcl.Tcl_DbIncrRefCount(obj, "", 0);
+    }
+}
+
+pub fn DecrRefCount(obj: Obj) void {
+    if (@hasDecl(tcl, "Tcl_DecrRefCount")) {
+        //tcl.Tcl_DecrRefCount(obj);
+        tcl.Tcl_DbDecrRefCount(obj, "", 0);
+    } else {
+        // NOTE __LINE__ and __FILE__ not implemented in Zig: https://github.com/ziglang/zig/issues/2029
+        tcl.Tcl_DbDecrRefCount(obj, "", 0);
+    }
+}

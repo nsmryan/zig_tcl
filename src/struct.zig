@@ -12,6 +12,7 @@ pub const StructCmds = enum {
     create,
     call,
     fields,
+    fromBytes,
 };
 
 pub const StructInstanceCmds = enum {
@@ -19,6 +20,7 @@ pub const StructInstanceCmds = enum {
     set,
     call,
     bytes,
+    setBytes,
 };
 
 pub fn RegisterStruct(comptime strt: type, comptime pkg: []const u8, interp: obj.Interp) c_int {
@@ -102,6 +104,28 @@ pub fn StructCommand(comptime strt: type) type {
                     obj.SetObjResult(interp, resultList);
                     return;
                 },
+
+                .fromBytes => {
+                    if (objv.len < 4) {
+                        tcl.Tcl_WrongNumArgs(interp, @intCast(c_int, objv.len), objv.ptr, "fromBytes name bytes");
+                        return err.TclError.TCL_ERROR;
+                    }
+
+                    const name = try obj.GetStringFromObj(objv[2]);
+
+                    obj.IncrRefCount(objv[3]);
+
+                    var length: c_int = undefined;
+                    var bytes = tcl.Tcl_GetByteArrayFromObj(objv[3], &length);
+
+                    const result = tcl.Tcl_CreateObjCommand(interp, name.ptr, StructInstanceCommand, @ptrCast(tcl.ClientData, bytes), TclDeallocateBytesCallback);
+                    if (result == null) {
+                        obj.SetStrResult(interp, "Could not create command!");
+                        return err.TclError.TCL_ERROR;
+                    } else {
+                        return;
+                    }
+                },
             }
 
             obj.SetStrResult(interp, "Unexpected subcommand name when creating struct!");
@@ -133,6 +157,10 @@ pub fn StructCommand(comptime strt: type) type {
 
                 .bytes => {
                     return err.TclResult(StructBytesCmd(strt_ptr, interp, obj.ObjSlice(objc, objv)));
+                },
+
+                .setBytes => {
+                    return err.TclResult(StructSetBytesCmd(strt_ptr, interp, obj.ObjSlice(objc, objv)));
                 },
             }
             obj.SetStrResult(interp, "Unexpected subcommand!");
@@ -255,11 +283,27 @@ pub fn StructCommand(comptime strt: type) type {
         pub fn StructSetField(ptr: *strt, comptime fieldName: []const u8, interp: obj.Interp, fieldObj: obj.Obj) err.TclError!void {
             @field(ptr.*, fieldName) = try obj.GetFromObj(@TypeOf(@field(ptr.*, fieldName)), interp, fieldObj);
         }
+
+        pub fn StructSetBytesCmd(ptr: *strt, interp: obj.Interp, objv: []const obj.Obj) err.TclError!void {
+            if (objv.len < 3) {
+                obj.WrongNumArgs(interp, objv, "fromBytes bytes");
+                return err.TclError.TCL_ERROR;
+            }
+
+            var length: c_int = undefined;
+            var bytes = tcl.Tcl_GetByteArrayFromObj(objv[2], &length);
+            @memcpy(@ptrCast([*]u8, ptr), bytes, @intCast(usize, length));
+            return;
+        }
     };
 }
 
 pub fn TclDeallocateCallback(cdata: tcl.ClientData) callconv(.C) void {
     tcl.Tcl_Free(@ptrCast([*c]u8, cdata));
+}
+
+pub fn TclDeallocateBytesCallback(cdata: tcl.ClientData) callconv(.C) void {
+    obj.DecrRefCount(@ptrCast(obj.Obj, @alignCast(@alignOf(obj.Obj), cdata)));
 }
 
 test "struct create/set/get" {
@@ -472,4 +516,18 @@ test "struct bytes" {
     _ = tcl.Tcl_GetCommandInfo(interp, "instance", &cmdInfo);
 
     try std.testing.expectEqualSlices(u8, bytes[0..@intCast(usize, length)], @ptrCast([*]u8, cmdInfo.objClientData)[0..@sizeOf(s)]);
+
+    result = tcl.Tcl_Eval(interp, "test::s fromBytes instance2 [instance bytes]");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "instance2 set field0 123");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "instance setBytes [instance2 bytes]");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "instance get field0");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+    const resultObj = tcl.Tcl_GetObjResult(interp);
+    try std.testing.expectEqual(@as(u32, 123), try obj.GetFromObj(u32, interp, resultObj));
 }
