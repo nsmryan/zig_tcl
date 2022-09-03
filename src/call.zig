@@ -38,10 +38,9 @@ pub fn WrapFunction(comptime function: anytype, name: [*:0]const u8, outer_inter
     _ = try obj.CreateObjCommand(outer_interp, name, cmd);
 }
 
-// Wrap a declaration taking a pointer to self as the first argument.
+// Call a declaration taking a self or pointer to self as the first argument.
 // The 'self' pointer comes from cdata, rather then getting passed in with objv.
-// NOTE this is untested! make a decl in the example, register it, and try.
-pub fn CallDecl(comptime function: anytype, interp: obj.Interp, cdata: tcl.ClientData, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) err.TclError!void {
+pub fn CallBound(comptime function: anytype, interp: obj.Interp, cdata: tcl.ClientData, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) err.TclError!void {
     // This tests seems to fail for Fn and BoundFn.
     //if (!std.meta.trait.is(.Fn)(@TypeOf(function))) {
     //    @compileError("Cannot wrap a decl that is not a function!");
@@ -69,6 +68,28 @@ pub fn CallDecl(comptime function: anytype, interp: obj.Interp, cdata: tcl.Clien
     comptime var argIndex = 1;
     inline while (argIndex < args.len) : (argIndex += 1) {
         args[argIndex] = try obj.GetFromObj(@TypeOf(args[argIndex]), interp, objv[argIndex + 2]);
+    }
+
+    return CallZigFunction(function, interp, args);
+}
+
+pub fn CallDecl(comptime function: anytype, interp: obj.Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) err.TclError!void {
+    // This tests seems to fail for Fn and BoundFn.
+    //if (!std.meta.trait.is(.Fn)(@TypeOf(function))) {
+    //    @compileError("Cannot wrap a decl that is not a function!");
+    //}
+
+    var args: ArgsTuple(@TypeOf(function)) = undefined;
+
+    // The objc starts with the command and and proc name.
+    if (args.len + 3 != objc) {
+        obj.SetObjResult(interp, obj.NewStringObj("Incorrect number of arguments when calling a decl"));
+        return err.TclError.TCL_ERROR;
+    }
+
+    comptime var argIndex = 0;
+    inline while (argIndex < args.len) : (argIndex += 1) {
+        args[argIndex] = try obj.GetFromObj(@TypeOf(args[argIndex]), interp, objv[argIndex + 3]);
     }
 
     return CallZigFunction(function, interp, args);
@@ -209,5 +230,5 @@ test "call decl" {
 
     var instance: s = s.init();
     var objv: [4][*c]tcl.Tcl_Obj = .{ try obj.ToObj("obj"), try obj.ToObj("call"), try obj.ToObj("func"), try obj.ToObj(@as(u32, 2)) };
-    try CallDecl(s.func, interp, &instance, objv.len, &objv);
+    try CallBound(s.func, interp, &instance, objv.len, &objv);
 }
