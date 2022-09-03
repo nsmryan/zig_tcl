@@ -216,22 +216,11 @@ pub fn StructCommand(comptime strt: type) type {
                     const field_type = @TypeOf(field);
                     const field_info = call.FuncInfo(@typeInfo(field_type));
 
-                    if (!utils.CallableFunction(field_info, interp)) {
+                    if (!utils.CallableDecl(strt, field_info, interp)) {
                         return err.TclError.TCL_ERROR;
                     }
 
-                    const first_arg = field_info.args[0];
-                    if (first_arg.arg_type) |arg_type| {
-                        if (arg_type == strt or (@typeInfo(arg_type) == .Pointer and std.meta.Child(arg_type) == strt)) {
-                            try call.CallBound(field, interp, @ptrCast(tcl.ClientData, ptr), @intCast(c_int, objv.len), objv.ptr);
-                        } else {
-                            obj.SetStrResult(interp, "Decl does not take a pointer to the struct as its first argument!");
-                            return err.TclError.TCL_ERROR;
-                        }
-                    } else {
-                        obj.SetStrResult(interp, "Function does not have a first argument!");
-                        return err.TclError.TCL_ERROR;
-                    }
+                    try call.CallBound(field, interp, @ptrCast(tcl.ClientData, ptr), @intCast(c_int, objv.len), objv.ptr);
 
                     found = true;
 
