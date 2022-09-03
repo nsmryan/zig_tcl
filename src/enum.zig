@@ -77,7 +77,7 @@ pub fn EnumCommand(comptime enm: type) type {
     };
 }
 
-pub fn EnumVariantCommand(comptime enm: type, comptime name: []const u8, comptime value: comptime_int) type {
+pub fn EnumVariantCommand(comptime enm: type, comptime variantName: []const u8, comptime value: comptime_int) type {
     return struct {
         pub fn command(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objv: []const obj.Obj) err.TclError!void {
             _ = cdata;
@@ -88,7 +88,7 @@ pub fn EnumVariantCommand(comptime enm: type, comptime name: []const u8, comptim
 
             switch (try obj.GetIndexFromObj(EnumVariantCmds, interp, objv[1], "commands")) {
                 .name => {
-                    obj.SetObjResult(interp, obj.NewStringObj(name));
+                    obj.SetObjResult(interp, obj.NewStringObj(variantName));
                 },
 
                 .value => {
@@ -96,7 +96,37 @@ pub fn EnumVariantCommand(comptime enm: type, comptime name: []const u8, comptim
                 },
 
                 .call => {
-                    _ = enm;
+                    if (objv.len < 3) {
+                        obj.WrongNumArgs(interp, objv, "call name [args]");
+                        return err.TclError.TCL_ERROR;
+                    }
+
+                    const name = try obj.GetStringFromObj(objv[2]);
+
+                    // Search for a decl of the given name.
+                    comptime var decls = std.meta.declarations(enm);
+                    inline for (decls) |decl| {
+                        // Ignore privatve decls
+                        if (!decl.is_pub) {
+                            continue;
+                        }
+
+                        // If the name matches attempt to call it.
+                        if (std.mem.eql(u8, name, decl.name)) {
+                            const field = @field(enm, decl.name);
+                            const field_info = call.FuncInfo(@typeInfo(@TypeOf(field)));
+
+                            try utils.CallableDecl(enm, field_info, interp);
+
+                            var enumValue = @intToEnum(enm, value);
+                            try call.CallBound(field, interp, @ptrCast(tcl.ClientData, &enumValue), @intCast(c_int, objv.len), objv.ptr);
+
+                            return;
+                        }
+                    }
+
+                    obj.SetStrResult(interp, "One or more field names not found in struct call!");
+                    return err.TclError.TCL_ERROR;
                 },
             }
         }
@@ -133,4 +163,31 @@ test "enum variant name/value" {
 
     try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e::v2 name"));
     try std.testing.expectEqualSlices(u8, "v2", try obj.GetStringFromObj(tcl.Tcl_GetObjResult(interp)));
+}
+
+test "enum variant name/value" {
+    const e = enum(u8) {
+        v0,
+        v1,
+
+        pub fn decl1(self: *@This()) u8 {
+            return @enumToInt(self.*);
+        }
+
+        pub fn decl2(self: @This()) u8 {
+            return @enumToInt(self);
+        }
+    };
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    var result: c_int = undefined;
+    result = RegisterEnum(e, "test", interp);
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e::v0 call decl1"));
+    try std.testing.expectEqual(@as(u8, 0), try obj.GetFromObj(u8, interp, tcl.Tcl_GetObjResult(interp)));
+
+    try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e::v1 call decl2"));
+    try std.testing.expectEqual(@as(u8, 1), try obj.GetFromObj(u8, interp, tcl.Tcl_GetObjResult(interp)));
 }

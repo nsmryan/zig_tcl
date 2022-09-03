@@ -59,7 +59,7 @@ pub fn CallBound(comptime function: anytype, interp: obj.Interp, cdata: tcl.Clie
     const func_info = FuncInfo(@typeInfo(@TypeOf(function)));
     const self_type = func_info.args[0].arg_type.?;
     if (@typeInfo(self_type) == .Pointer) {
-        args[0] = @ptrCast(self_type, @alignCast(@alignOf(self_type), cdata));
+        args[0] = @ptrCast(self_type, @alignCast(@alignOf(std.meta.Child(self_type)), cdata));
     } else {
         // For non-pointers, dereference cdata to get a copy of the value.
         args[0] = @ptrCast(*self_type, @alignCast(@alignOf(self_type), cdata)).*;
