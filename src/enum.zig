@@ -22,6 +22,11 @@ pub const EnumVariantCmds = enum {
 };
 
 pub fn RegisterEnum(comptime enm: type, comptime pkg: []const u8, interp: obj.Interp) c_int {
+    if (!std.meta.trait.is(.Enum)(enm)) {
+        obj.SetObjResult(interp, obj.NewStringObj("Attempting to register a non-enum as an enum!"));
+        return tcl.TCL_ERROR;
+    }
+
     const terminator: [1]u8 = .{0};
     const cmdName = pkg ++ "::" ++ @typeName(enm) ++ terminator;
     _ = obj.CreateObjCommand(interp, cmdName, EnumCommand(enm).command) catch |errResult| return err.ErrorToInt(errResult);
