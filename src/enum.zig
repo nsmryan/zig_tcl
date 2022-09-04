@@ -43,7 +43,6 @@ pub fn EnumCommand(comptime enm: type) type {
     return struct {
         pub fn command(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objv: []const obj.Obj) err.TclError!void {
             _ = cdata;
-            _ = enm;
 
             switch (try obj.GetIndexFromObj(EnumCmds, interp, objv[1], "commands")) {
                 .call => {
@@ -116,7 +115,7 @@ pub fn EnumCommand(comptime enm: type) type {
 
                 .variants => {
                     if (objv.len < 2) {
-                        tcl.Tcl_WrongNumArgs(interp, @intCast(c_int, objv.len), objv.ptr, "names");
+                        tcl.Tcl_WrongNumArgs(interp, @intCast(c_int, objv.len), objv.ptr, "variants");
                         return err.TclError.TCL_ERROR;
                     }
 
@@ -148,10 +147,12 @@ pub fn EnumVariantCommand(comptime enm: type, comptime variantName: []const u8, 
             switch (try obj.GetIndexFromObj(EnumVariantCmds, interp, objv[1], "commands")) {
                 .name => {
                     obj.SetObjResult(interp, obj.NewStringObj(variantName));
+                    return;
                 },
 
                 .value => {
                     obj.SetObjResult(interp, obj.NewIntObj(@as(isize, value)));
+                    return;
                 },
 
                 .call => {
@@ -192,6 +193,9 @@ pub fn EnumVariantCommand(comptime enm: type, comptime variantName: []const u8, 
                     return err.TclError.TCL_ERROR;
                 },
             }
+
+            obj.SetStrResult(interp, "Struct command not found!");
+            return err.TclError.TCL_ERROR;
         }
     };
 }

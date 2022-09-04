@@ -25,7 +25,7 @@ pub const StructInstanceCmds = enum {
 
 pub fn RegisterStruct(comptime strt: type, comptime pkg: []const u8, interp: obj.Interp) c_int {
     if (!std.meta.trait.is(.Struct)(strt)) {
-        obj.SetObjResult(interp, obj.NewStringObj("Attempting to register a non-enum as an enum!"));
+        obj.SetObjResult(interp, obj.NewStringObj("Attempting to register a non-struct as a struct!"));
         return tcl.TCL_ERROR;
     }
 
