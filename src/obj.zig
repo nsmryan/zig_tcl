@@ -518,19 +518,19 @@ test "ptr obj" {
 pub fn IncrRefCount(obj: Obj) void {
     if (@hasDecl(tcl, "Tcl_IncrRefCount")) {
         //tcl.Tcl_IncrRefCount(obj);
-        tcl.Tcl_DbIncrRefCount(obj, "", 0);
+        tcl.Tcl_DbIncrRefCount(obj, @src().fn_name, @src().line);
     } else {
         // NOTE __LINE__ and __FILE__ not implemented in Zig: https://github.com/ziglang/zig/issues/2029
-        tcl.Tcl_DbIncrRefCount(obj, "", 0);
+        tcl.Tcl_DbIncrRefCount(obj, @src().fn_name, @src().line);
     }
 }
 
 pub fn DecrRefCount(obj: Obj) void {
     if (@hasDecl(tcl, "Tcl_DecrRefCount")) {
         //tcl.Tcl_DecrRefCount(obj);
-        tcl.Tcl_DbDecrRefCount(obj, "", 0);
+        tcl.Tcl_DbDecrRefCount(obj, @src().fn_name, @src().line);
     } else {
         // NOTE __LINE__ and __FILE__ not implemented in Zig: https://github.com/ziglang/zig/issues/2029
-        tcl.Tcl_DbDecrRefCount(obj, "", 0);
+        tcl.Tcl_DbDecrRefCount(obj, @src().fn_name, @src().line);
     }
 }

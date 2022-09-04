@@ -24,9 +24,8 @@ pub const StructInstanceCmds = enum {
 };
 
 pub fn RegisterStruct(comptime strt: type, comptime pkg: []const u8, interp: obj.Interp) c_int {
-    if (!std.meta.trait.is(.Struct)(strt)) {
-        obj.SetObjResult(interp, obj.NewStringObj("Attempting to register a non-struct as a struct!"));
-        return tcl.TCL_ERROR;
+    if (@typeInfo(strt) != .Struct) {
+        @compileError("Attempting to register a non-struct as a struct!");
     }
 
     const terminator: [1]u8 = .{0};
@@ -53,7 +52,7 @@ pub fn StructCommand(comptime strt: type) type {
                     const name = try obj.GetStringFromObj(objv[2]);
 
                     var ptr = tcl.Tcl_Alloc(@sizeOf(strt));
-                    const result = tcl.Tcl_CreateObjCommand(interp, name.ptr, StructInstanceCommand, @ptrCast(tcl.ClientData, ptr), TclDeallocateCallback);
+                    const result = tcl.Tcl_CreateObjCommand(interp, name.ptr, StructInstanceCommand, @ptrCast(tcl.ClientData, ptr), utils.TclDeallocateCallback);
                     if (result == null) {
                         obj.SetStrResult(interp, "Could not create command!");
                         return err.TclError.TCL_ERROR;
@@ -123,7 +122,15 @@ pub fn StructCommand(comptime strt: type) type {
                     var length: c_int = undefined;
                     var bytes = tcl.Tcl_GetByteArrayFromObj(objv[3], &length);
 
-                    const result = tcl.Tcl_CreateObjCommand(interp, name.ptr, StructInstanceCommand, @ptrCast(tcl.ClientData, bytes), TclDeallocateBytesCallback);
+                    if (length != @sizeOf(strt)) {
+                        obj.SetStrResult(interp, "Byte array size does not match struct!");
+                        return err.TclError.TCL_ERROR;
+                    }
+
+                    var ptr = tcl.Tcl_Alloc(@sizeOf(strt));
+                    @memcpy(ptr, bytes, @sizeOf(strt));
+
+                    const result = tcl.Tcl_CreateObjCommand(interp, name.ptr, StructInstanceCommand, @ptrCast(tcl.ClientData, ptr), utils.TclDeallocateCallback);
                     if (result == null) {
                         obj.SetStrResult(interp, "Could not create command!");
                         return err.TclError.TCL_ERROR;
@@ -139,12 +146,7 @@ pub fn StructCommand(comptime strt: type) type {
 
         fn StructInstanceCommand(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) callconv(.C) c_int {
             _ = cdata;
-            // support the cget, field, call, configure interface in syntax.tcl
-            if (objc < 2) {
-                tcl.Tcl_WrongNumArgs(interp, objc, objv, "field name [value]");
-                return tcl.TCL_ERROR;
-            }
-
+            // TODO support the cget, configure interface in syntax.tcl
             var strt_ptr = @ptrCast(*strt, @alignCast(@alignOf(strt), cdata));
             const cmd = obj.GetIndexFromObj(StructInstanceCmds, interp, objv[1], "commands") catch |errResult| return err.TclResult(errResult);
             switch (cmd) {
@@ -189,7 +191,8 @@ pub fn StructCommand(comptime strt: type) type {
                 inline for (fields) |field| {
                     if (std.mem.eql(u8, name, field.name)) {
                         found = true;
-                        var fieldObj = try StructGetField(ptr, field.name);
+                        var fieldObj = try obj.ToObj(@field(ptr.*, field.name));
+
                         const result = tcl.Tcl_ListObjReplace(interp, resultList, @intCast(c_int, index), 1, 1, &fieldObj);
                         if (result != tcl.TCL_OK) {
                             obj.SetStrResult(interp, "Failed to retrieve a field from a struct!");
@@ -297,18 +300,15 @@ pub fn StructCommand(comptime strt: type) type {
 
             var length: c_int = undefined;
             var bytes = tcl.Tcl_GetByteArrayFromObj(objv[2], &length);
-            @memcpy(@ptrCast([*]u8, ptr), bytes, @intCast(usize, length));
-            return;
+            if (length == @sizeOf(strt)) {
+                @memcpy(@ptrCast([*]u8, ptr), bytes, @intCast(usize, length));
+                return;
+            } else {
+                obj.SetStrResult(interp, "Byte array size does not match struct!");
+                return err.TclError.TCL_ERROR;
+            }
         }
     };
-}
-
-pub fn TclDeallocateCallback(cdata: tcl.ClientData) callconv(.C) void {
-    tcl.Tcl_Free(@ptrCast([*c]u8, cdata));
-}
-
-pub fn TclDeallocateBytesCallback(cdata: tcl.ClientData) callconv(.C) void {
-    obj.DecrRefCount(@ptrCast(obj.Obj, @alignCast(@alignOf(obj.Obj), cdata)));
 }
 
 test "struct create/set/get" {

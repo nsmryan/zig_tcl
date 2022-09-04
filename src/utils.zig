@@ -37,3 +37,7 @@ pub fn CallableDecl(comptime typ: type, comptime fn_info: std.builtin.TypeInfo.F
     }
     return false;
 }
+
+pub fn TclDeallocateCallback(cdata: tcl.ClientData) callconv(.C) void {
+    tcl.Tcl_Free(@ptrCast([*c]u8, cdata));
+}

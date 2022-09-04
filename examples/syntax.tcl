@@ -49,6 +49,7 @@ s call func 1 "test"
 struct call decl 1 2 3
 
 # Alternate struct field concept
+# one issue with this is that you can only get one field at a time.
 # get a field value
 s field a
 
@@ -60,17 +61,16 @@ s field
 
 
 ## Example usage code for enums, for an enum called 'enm'
-#  create a new enum command. if not given, use the default value
-enm create e E1
-
 #  get the value from the enum
-e value
+e::e1 value
 
 #  get the string name from the enum
-e name
+e::e1 name
 
 #  call a decl that takes the enum as the first argument
 e call decl 1 2 3
+
+e::e1 call dec2 1 2 3
 
 #  return the value of the enum if used without argument, for convienence
 puts [e]

@@ -22,9 +22,8 @@ pub const EnumVariantCmds = enum {
 };
 
 pub fn RegisterEnum(comptime enm: type, comptime pkg: []const u8, interp: obj.Interp) c_int {
-    if (!std.meta.trait.is(.Enum)(enm)) {
-        obj.SetObjResult(interp, obj.NewStringObj("Attempting to register a non-enum as an enum!"));
-        return tcl.TCL_ERROR;
+    if (@typeInfo(enm) != .Enum) {
+        @compileError("Attempting to register a non-enum as an enum!");
     }
 
     const terminator: [1]u8 = .{0};
