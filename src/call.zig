@@ -51,7 +51,7 @@ pub fn CallBound(comptime function: anytype, interp: obj.Interp, cdata: tcl.Clie
     // The arguents will have an extra field for the cdata to pass into.
     // The objc starts with the command and and proc name.
     if (args.len + 2 != objc) {
-        obj.SetObjResult(interp, obj.NewStringObj("Incorrect number of arguments when calling a decl"));
+        obj.SetObjResult(interp, obj.NewStringObj("Incorrect number of arguments when calling a bound decl!"));
         return err.TclError.TCL_ERROR;
     }
 
@@ -86,9 +86,9 @@ pub fn CallDecl(comptime function: anytype, interp: obj.Interp, objc: c_int, obj
 
     var args: ArgsTuple(@TypeOf(function)) = undefined;
 
-    // The objc starts with the command and and proc name.
+    // The objc starts with the command name and proc name.
     if (args.len + 3 != objc) {
-        obj.SetObjResult(interp, obj.NewStringObj("Incorrect number of arguments when calling a decl"));
+        obj.SetObjResult(interp, obj.NewStringObj("Incorrect number of arguments when calling a decl!"));
         return err.TclError.TCL_ERROR;
     }
 

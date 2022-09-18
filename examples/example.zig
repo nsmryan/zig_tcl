@@ -22,6 +22,10 @@ const Struct = struct {
     pub fn decl2(s: *Struct, arg: c_int) void {
         s.int = arg;
     }
+
+    const Inner = struct {
+        field0: usize,
+    };
 };
 
 const Enum = enum {
@@ -55,9 +59,9 @@ fn Struct_TclCmd(cdata: zt.tcl.ClientData, interp: [*c]zt.tcl.Tcl_Interp, objc: 
     if (objc == 1) {
         // I believe wide int should be long enough for a pointer on all platforms.
         const ptr_obj = zt.obj.ToObj(@ptrToInt(cdata)) catch return zt.tcl.TCL_ERROR;
-        const struct_copy = zt.GetFromObj(Struct, interp, ptr_obj) catch return zt.tcl.TCL_ERROR;
 
-        std.testing.expect(std.meta.eql(s.*, struct_copy)) catch @panic("struct ptr copy did not work!");
+        //const struct_copy = zt.GetFromObj(Struct, interp, ptr_obj) catch return zt.tcl.TCL_ERROR;
+        //std.testing.expect(std.meta.eql(s.*, struct_copy)) catch @panic("struct ptr copy did not work!");
 
         zt.obj.SetObjResult(interp, ptr_obj);
         return zt.tcl.TCL_OK;
@@ -67,9 +71,9 @@ fn Struct_TclCmd(cdata: zt.tcl.ClientData, interp: [*c]zt.tcl.Tcl_Interp, objc: 
     const name = zt.tcl.Tcl_GetStringFromObj(objv[1], &name_length);
 
     if (std.mem.eql(u8, std.mem.span(name), "decl1")) {
-        zt.CallDecl(Struct.decl1, interp, cdata, objc, objv) catch return zt.tcl.TCL_ERROR;
+        zt.CallDecl(Struct.decl1, interp, objc, objv) catch return zt.tcl.TCL_ERROR;
     } else if (std.mem.eql(u8, std.mem.span(name), "decl2")) {
-        zt.CallDecl(Struct.decl2, interp, cdata, objc, objv) catch return zt.tcl.TCL_ERROR;
+        zt.CallDecl(Struct.decl2, interp, objc, objv) catch return zt.tcl.TCL_ERROR;
     } else if (std.mem.eql(u8, std.mem.span(name), "bl")) {
         if (objc > 2) {
             s.bl = zt.GetFromObj(bool, interp, objv[2]) catch return zt.tcl.TCL_ERROR;
@@ -184,6 +188,7 @@ export fn Zigexample_Init(interp: zt.Interp) c_int {
     zt.WrapFunction(test_function, "zigtcl::zig_function", interp) catch return zt.tcl.TCL_ERROR;
 
     _ = zt.RegisterStruct(Struct, "zigtcl", interp);
+    _ = zt.RegisterStruct(Struct.Inner, "zigtcl", interp);
 
     return zt.tcl.Tcl_PkgProvide(interp, "zigtcl", "0.1.0");
 }

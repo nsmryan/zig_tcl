@@ -32,14 +32,14 @@ proc runTests { } {
     if { $value != $result } { throw ZIGTCLINVALID "test function '$result' did not match '$value'"   }
 
     struct bl 0
-    struct decl1
+    struct call decl1
     set value 1
-    set result [struct bl]
+    set result [struct get bl]
     if { $value != $result } { throw ZIGTCLINVALID "decl1 '$result' did not match '$value'"   }
 
-    struct decl2 100
+    struct call decl2 100
     set value 100
-    set result [struct int]
+    set result [struct get int]
     if { $value != $result } { throw ZIGTCLINVALID "decl2 '$result' did not match '$value'"   }
 
     puts "Tests Passed!"
@@ -54,6 +54,8 @@ proc checkField { name value } {
 zigtcl::Struct create s
 puts "bl [s set bl 1]"
 puts "bl [s get bl]"
+s call decl1
+puts "!bl [s get bl]"
 
 puts "enm [s set enm 1]"
 puts "enm [s get enm]"
@@ -63,4 +65,5 @@ s set int 11
 s set wide 12
 puts "multiple [s get long int wide]"
 
-runTests
+
+#runTests
