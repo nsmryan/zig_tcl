@@ -23,7 +23,7 @@ pub const UnionInstanceCmds = enum {
     setBytes,
 };
 
-pub fn RegisterUnion(comptime unn: type, comptime pkg: []const u8, interp: obj.Interp) c_int {
+pub fn RegisterUnion(comptime unn: type, comptime name: []const u8, comptime pkg: []const u8, interp: obj.Interp) c_int {
     if (@typeInfo(unn) != .Union) {
         @compileError("Attempting to register a non-union as a union!");
     }
@@ -33,7 +33,7 @@ pub fn RegisterUnion(comptime unn: type, comptime pkg: []const u8, interp: obj.I
     }
 
     const terminator: [1]u8 = .{0};
-    const cmdName = pkg ++ "::" ++ @typeName(unn) ++ terminator;
+    const cmdName = pkg ++ "::" ++ name ++ terminator;
     _ = obj.CreateObjCommand(interp, cmdName, UnionCommand(unn).command) catch |errResult| return err.ErrorToInt(errResult);
 
     return tcl.TCL_OK;
@@ -290,7 +290,7 @@ test "unn create/variant/value" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     var result: c_int = undefined;
-    result = RegisterUnion(u, "test", interp);
+    result = RegisterUnion(u, "u", "test", interp);
     try std.testing.expectEqual(tcl.TCL_OK, result);
 
     result = tcl.Tcl_Eval(interp, "test::u create instance");
@@ -346,7 +346,7 @@ test "unn create/call" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     var result: c_int = undefined;
-    result = RegisterUnion(u, "test", interp);
+    result = RegisterUnion(u, "u", "test", interp);
     try std.testing.expectEqual(tcl.TCL_OK, result);
 
     result = tcl.Tcl_Eval(interp, "test::u create instance");
@@ -392,7 +392,7 @@ test "unn type call decl" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     var result: c_int = undefined;
-    result = RegisterUnion(u, "test", interp);
+    result = RegisterUnion(u, "u", "test", interp);
     try std.testing.expectEqual(tcl.TCL_OK, result);
 
     result = tcl.Tcl_Eval(interp, "test::u call decl1 1");
@@ -411,7 +411,7 @@ test "unn bytes" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     var result: c_int = undefined;
-    result = RegisterUnion(u, "test", interp);
+    result = RegisterUnion(u, "u", "test", interp);
     try std.testing.expectEqual(tcl.TCL_OK, result);
 
     result = tcl.Tcl_Eval(interp, "test::u create instance");

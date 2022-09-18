@@ -23,14 +23,16 @@ pub const StructInstanceCmds = enum {
     setBytes,
 };
 
-pub fn RegisterStruct(comptime strt: type, comptime pkg: []const u8, interp: obj.Interp) c_int {
+pub fn RegisterStruct(comptime strt: type, comptime name: []const u8, comptime pkg: []const u8, interp: obj.Interp) c_int {
     if (@typeInfo(strt) != .Struct) {
         @compileError("Attempting to register a non-struct as a struct!");
     }
 
     const terminator: [1]u8 = .{0};
-    const cmdName = pkg ++ "::" ++ @typeName(strt) ++ terminator;
+    var cmdName = pkg ++ "::" ++ name ++ terminator;
     _ = obj.CreateObjCommand(interp, cmdName, StructCommand(strt).command) catch |errResult| return err.ErrorToInt(errResult);
+
+    std.debug.print("struct {s}\n", .{cmdName});
 
     return tcl.TCL_OK;
 }
@@ -321,7 +323,7 @@ test "struct create/set/get" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     var result: c_int = undefined;
-    result = RegisterStruct(s, "test", interp);
+    result = RegisterStruct(s, "s", "test", interp);
     try std.testing.expectEqual(tcl.TCL_OK, result);
 
     result = tcl.Tcl_Eval(interp, "test::s create instance");
@@ -368,7 +370,7 @@ test "struct create/set/get multiple" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     var result: c_int = undefined;
-    result = RegisterStruct(s, "test", interp);
+    result = RegisterStruct(s, "s", "test", interp);
     try std.testing.expectEqual(tcl.TCL_OK, result);
 
     result = tcl.Tcl_Eval(interp, "test::s create instance");
@@ -408,7 +410,7 @@ test "struct create/call" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     var result: c_int = undefined;
-    result = RegisterStruct(s, "test", interp);
+    result = RegisterStruct(s, "s", "test", interp);
     try std.testing.expectEqual(tcl.TCL_OK, result);
 
     result = tcl.Tcl_Eval(interp, "test::s create instance");
@@ -454,7 +456,7 @@ test "struct type call decl" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     var result: c_int = undefined;
-    result = RegisterStruct(s, "test", interp);
+    result = RegisterStruct(s, "s", "test", interp);
     try std.testing.expectEqual(tcl.TCL_OK, result);
 
     result = tcl.Tcl_Eval(interp, "test::s call decl1 1");
@@ -473,7 +475,7 @@ test "struct fields" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     var result: c_int = undefined;
-    result = RegisterStruct(s, "test", interp);
+    result = RegisterStruct(s, "s", "test", interp);
     try std.testing.expectEqual(tcl.TCL_OK, result);
 
     try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::s fields"));
@@ -503,7 +505,7 @@ test "struct bytes" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     var result: c_int = undefined;
-    result = RegisterStruct(s, "test", interp);
+    result = RegisterStruct(s, "s", "test", interp);
     try std.testing.expectEqual(tcl.TCL_OK, result);
 
     result = tcl.Tcl_Eval(interp, "test::s create instance");

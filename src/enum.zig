@@ -21,13 +21,13 @@ pub const EnumVariantCmds = enum {
     call,
 };
 
-pub fn RegisterEnum(comptime enm: type, comptime pkg: []const u8, interp: obj.Interp) c_int {
+pub fn RegisterEnum(comptime enm: type, comptime name: []const u8, comptime pkg: []const u8, interp: obj.Interp) c_int {
     if (@typeInfo(enm) != .Enum) {
         @compileError("Attempting to register a non-enum as an enum!");
     }
 
     const terminator: [1]u8 = .{0};
-    const cmdName = pkg ++ "::" ++ @typeName(enm) ++ terminator;
+    const cmdName = pkg ++ "::" ++ name ++ terminator;
     _ = obj.CreateObjCommand(interp, cmdName, EnumCommand(enm).command) catch |errResult| return err.ErrorToInt(errResult);
 
     inline for (@typeInfo(enm).Enum.fields) |variant| {
@@ -209,7 +209,7 @@ test "enum variant name/value" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     var result: c_int = undefined;
-    result = RegisterEnum(e, "test", interp);
+    result = RegisterEnum(e, "e", "test", interp);
     try std.testing.expectEqual(tcl.TCL_OK, result);
 
     try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e::v0 value"));
@@ -248,7 +248,7 @@ test "enum variant call" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     var result: c_int = undefined;
-    result = RegisterEnum(e, "test", interp);
+    result = RegisterEnum(e, "e", "test", interp);
     try std.testing.expectEqual(tcl.TCL_OK, result);
 
     try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e::v0 call decl1"));
@@ -279,7 +279,7 @@ test "enum call" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     var result: c_int = undefined;
-    result = RegisterEnum(e, "test", interp);
+    result = RegisterEnum(e, "e", "test", interp);
     try std.testing.expectEqual(tcl.TCL_OK, result);
 
     try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e call decl1"));
@@ -306,7 +306,7 @@ test "enum name/value" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     var result: c_int = undefined;
-    result = RegisterEnum(e, "test", interp);
+    result = RegisterEnum(e, "e", "test", interp);
     try std.testing.expectEqual(tcl.TCL_OK, result);
 
     try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e value v0"));
@@ -325,7 +325,7 @@ test "enum variants" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     var result: c_int = undefined;
-    result = RegisterEnum(e, "test", interp);
+    result = RegisterEnum(e, "e", "test", interp);
     try std.testing.expectEqual(tcl.TCL_OK, result);
 
     try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e variants"));

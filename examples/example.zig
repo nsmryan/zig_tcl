@@ -187,8 +187,10 @@ export fn Zigexample_Init(interp: zt.Interp) c_int {
 
     zt.WrapFunction(test_function, "zigtcl::zig_function", interp) catch return zt.tcl.TCL_ERROR;
 
-    _ = zt.RegisterStruct(Struct, "zigtcl", interp);
-    _ = zt.RegisterStruct(Struct.Inner, "zigtcl", interp);
+    _ = zt.RegisterStruct(Struct, "Struct", "zigtcl", interp);
+
+    const Inner = Struct.Inner;
+    _ = zt.RegisterStruct(Inner, "Inner", "zigtcl", interp);
 
     return zt.tcl.Tcl_PkgProvide(interp, "zigtcl", "0.1.0");
 }
