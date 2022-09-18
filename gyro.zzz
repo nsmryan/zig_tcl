@@ -1,0 +1,17 @@
+pkgs:
+    zigtcl:
+        version: 0.0.1
+        root: src/main.zig
+        description: TCL extension library for Zig
+        license: unlicense
+        homepage_url: https://github.com/nsmryan/zig_tcl
+        source_url: https://github.com/nsmryan/zig_tcl
+        tags:
+            tcl
+            bindings
+        files:
+            README.md
+            build.zig
+            src/*.zig
+
+
