@@ -14,6 +14,7 @@ const Struct = struct {
     float: f32 = 0.0,
     ptr: *u8 = undefined,
     enm: Enum,
+    nested: struct { f0: u32, f1: u8 },
 
     pub fn decl1(s: *Struct) void {
         s.bl = !s.bl;
@@ -33,22 +34,6 @@ const Enum = enum {
     E2,
     E3,
 };
-
-//pub fn EnumCommand(enm: type) type {
-//    return struct {
-//        pub fn command(cdata: zt.tcl.ClientData, interp: [*c]zt.tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]zt.tcl.Tcl_Obj) c_int {
-//            // TODO check for single input.
-//        }
-//    };
-//}
-
-//pub fn RegisterEnum(comptime enm: type, pkg: [*c]u8, interp: obj.Interp) c_int {
-//    const info = @typeInfo(enm);
-//    Tcl_ObjSetVar2(interp, part1Ptr, part2Ptr, newValuePtr, flags);
-//
-//    const enumCmdName = pkg ++ "::" ++ @typeName(enm) ++ 0;
-//    _ = zt.CreateObjCommand(interp, enumCmdName, EnumCommand(enm).command);
-//}
 
 fn Struct_TclCmd(cdata: zt.tcl.ClientData, interp: [*c]zt.tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]zt.tcl.Tcl_Obj) callconv(.C) c_int {
     _ = objc;

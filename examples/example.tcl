@@ -57,6 +57,9 @@ puts "bl [s get bl]"
 s call decl1
 puts "!bl [s get bl]"
 
+s set nested [binary decode hex 01234567AB]
+puts [binary encode hex [s get nested]]
+
 puts "enm [s set enm 1]"
 puts "enm [s get enm]"
 

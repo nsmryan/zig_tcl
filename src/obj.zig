@@ -258,8 +258,6 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) err.TclError!T {
             return ptr.*;
         },
 
-        // This may not be the only way to do this. Passing pointers to TCL like this is not generally
-        // a good idea. A similar comment applies to Struct.
         .Union => {
             var length: c_int = undefined;
             var bytes = tcl.Tcl_GetByteArrayFromObj(obj, &length);
