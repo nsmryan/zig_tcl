@@ -5,6 +5,6 @@ const tcl = @cImport({
         @cDefine("USE_TCL_STUBS", "1");
     }
     //@cInclude("c:/tcltk/include/tcl.h");
-    @cInclude("/usr/include/tcl.h");
+    @cInclude("tcl.h");
 });
 usingnamespace tcl;

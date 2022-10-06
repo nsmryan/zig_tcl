@@ -224,7 +224,17 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) err.TclError!T {
 
         // TODO this is not necessarily the correct thing to do. A pointer can be a string, a block,
         // or an integer pointer. Perhaps provide separate functions for these?
-        .Pointer => return @intToPtr(T, @intCast(usize, try GetWideIntFromObj(interp, obj))),
+        .Pointer => |ptr| {
+            if (ptr.size == .One or ptr.size == .Many or ptr.size == .C) {
+                return @intToPtr(T, @intCast(usize, try GetWideIntFromObj(interp, obj)));
+            } else if (ptr.size == .Slice) {
+                var length: c_int = undefined;
+                var bytes = tcl.Tcl_GetByteArrayFromObj(obj, &length);
+
+                const num_elements = @divFloor(@intCast(usize, length), @sizeOf(ptr.child));
+                return @ptrCast([*]ptr.child, bytes)[0..num_elements];
+            }
+        },
 
         // NOTE This implementation may result in more work then necessary! I'm not sure that it actually shimmers
         // the enum, but by using it as a string, the string of the integer representation will be constructed and

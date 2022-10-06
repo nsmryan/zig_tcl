@@ -21,16 +21,17 @@ pub fn build(b: *std.build.Builder) void {
         lib.addIncludeDir("c:/tcltk/include");
 
         // Stubs does not work- can't seem to get Zig to pick up the .a archive file.
+        // TODO try with addObjectFile directly and include this file in build.
         // Building with zig itself also doesn't work- some issue with 'zig cc'
         // Building with MagicSplat's tclstub86.lib file also doesn't work.
         //lib.linkSystemLibraryName("tclstub86");
         lib.linkSystemLibraryName("tcl86");
     } else {
-        lib.addLibPath("/usr/lib");
-        lib.addIncludeDir("/usr/include");
+        lib.addIncludeDir("include");
         // On Linux build with stubs.
         //lib.linkSystemLibraryName("tcl8.6");
-        lib.linkSystemLibraryName("tclstub8.6");
+        //lib.linkSystemLibraryName("tclstub8.6");
+        lib.addObjectFile("lib/libtclstub8.6.a");
 
         // The tests link TCL directly, as we are not building an extension.
         main_tests.addIncludeDir("/usr/include");
