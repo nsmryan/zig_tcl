@@ -64,10 +64,11 @@ fn NullTerminatedNames(comptime enm: type) []const [*c]const u8 {
     comptime {
         const commandNames = std.meta.fieldNames(enm);
 
-        var names: [commandNames.len][*c]const u8 = undefined;
+        var names: [commandNames.len + 1][*c]const u8 = undefined;
         inline for (commandNames) |commandName, index| {
             names[index] = @ptrCast([*c]const u8, std.fmt.comptimePrint("{s}", .{commandName}));
         }
+        names[commandNames.len] = null;
         return names[0..];
     }
 }
