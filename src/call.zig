@@ -55,7 +55,7 @@ pub fn CallBound(comptime function: anytype, interp: obj.Interp, cdata: tcl.Clie
         return err.TclError.TCL_ERROR;
     }
 
-    const func_info = FuncInfo(@typeInfo(@TypeOf(function)));
+    const func_info = FuncInfo(@typeInfo(@TypeOf(function))) orelse unreachable;
     if (func_info.args.len == 0) {
         obj.SetObjResult(interp, obj.NewStringObj("Calling a bound function with 0 arguments!?"));
         return err.TclError.TCL_ERROR;
@@ -100,19 +100,19 @@ pub fn CallDecl(comptime function: anytype, interp: obj.Interp, objc: c_int, obj
     return CallZigFunction(function, interp, args);
 }
 
-pub fn FuncInfo(comptime func_info: std.builtin.TypeInfo) std.builtin.TypeInfo.Fn {
+pub fn FuncInfo(comptime func_info: std.builtin.TypeInfo) ?std.builtin.TypeInfo.Fn {
     if (func_info == .Fn) {
         return func_info.Fn;
     } else if (func_info == .BoundFn) {
         return func_info.BoundFn;
     } else {
-        @compileError("Cannot get function info from a non-function!");
+        return null;
     }
 }
 
 pub fn CallZigFunction(comptime function: anytype, interp: obj.Interp, args: anytype) err.TclError!void {
     const func_info = @typeInfo(@TypeOf(function));
-    const return_type = FuncInfo(func_info).return_type;
+    const return_type = (FuncInfo(func_info) orelse return err.TclError).return_type;
     if (return_type) |typ| {
         // If the function has a return value, check if it is an error.
         if (@typeInfo(typ) == .ErrorUnion) {
@@ -150,7 +150,7 @@ pub fn ArgsTuple(comptime Function: type) type {
     //if (info != .Fn)
     //@compileError("ArgsTuple expects a function type");
 
-    const function_info = FuncInfo(info);
+    const function_info = FuncInfo(info) orelse unreachable;
     if (function_info.is_generic)
         @compileError("Cannot create ArgsTuple for generic function");
     if (function_info.is_var_args)

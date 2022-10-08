@@ -63,7 +63,7 @@ pub fn EnumCommand(comptime enm: type) type {
                         // If the name matches attempt to call it.
                         if (std.mem.eql(u8, name, decl.name)) {
                             const field = @field(enm, decl.name);
-                            const field_info = call.FuncInfo(@typeInfo(@TypeOf(field)));
+                            const field_info = call.FuncInfo(@typeInfo(@TypeOf(field))) orelse continue;
 
                             comptime {
                                 if (!utils.CallableFunction(field_info)) {
@@ -171,7 +171,7 @@ pub fn EnumVariantCommand(comptime enm: type, comptime variantName: []const u8, 
                         }
 
                         const field = @field(enm, decl.name);
-                        const field_info = call.FuncInfo(@typeInfo(@TypeOf(field)));
+                        const field_info = call.FuncInfo(@typeInfo(@TypeOf(field))) orelse continue;
 
                         comptime {
                             if (!utils.CallableDecl(enm, field_info)) {

@@ -72,13 +72,13 @@ pub fn StructCommand(comptime strt: type) type {
                     // Search for a decl of the given name.
                     comptime var decls = std.meta.declarations(strt);
                     inline for (decls) |decl| {
-                        // Ignore privatve decls
+                        // Ignore private decls
                         if (!decl.is_pub) {
                             continue;
                         }
 
                         const field = @field(strt, decl.name);
-                        const field_info = call.FuncInfo(@typeInfo(@TypeOf(field)));
+                        const field_info = call.FuncInfo(@typeInfo(@TypeOf(field))) orelse continue;
 
                         comptime {
                             if (!utils.CallableFunction(field_info)) {
@@ -253,13 +253,13 @@ pub fn StructCommand(comptime strt: type) type {
             // Search for a decl of the given name.
             comptime var decls = std.meta.declarations(strt);
             inline for (decls) |decl| {
-                // Ignore privatve decls
+                // Ignore private decls
                 if (!decl.is_pub) {
                     continue;
                 }
 
                 const field = @field(strt, decl.name);
-                const field_info = call.FuncInfo(@typeInfo(@TypeOf(field)));
+                const field_info = call.FuncInfo(@typeInfo(@TypeOf(field))) orelse continue;
 
                 comptime {
                     if (!utils.CallableDecl(strt, field_info)) {
