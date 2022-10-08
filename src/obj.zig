@@ -225,14 +225,18 @@ pub fn GetFromObj(comptime T: type, interp: Interp, obj: Obj) err.TclError!T {
         // TODO this is not necessarily the correct thing to do. A pointer can be a string, a block,
         // or an integer pointer. Perhaps provide separate functions for these?
         .Pointer => |ptr| {
-            if (ptr.size == .One or ptr.size == .Many or ptr.size == .C) {
-                return @intToPtr(T, @intCast(usize, try GetWideIntFromObj(interp, obj)));
-            } else if (ptr.size == .Slice) {
-                var length: c_int = undefined;
-                var bytes = tcl.Tcl_GetByteArrayFromObj(obj, &length);
+            switch (ptr.size) {
+                .One, .Many, .C => {
+                    return @intToPtr(T, @intCast(usize, try GetWideIntFromObj(interp, obj)));
+                },
 
-                const num_elements = @divFloor(@intCast(usize, length), @sizeOf(ptr.child));
-                return @ptrCast([*]ptr.child, bytes)[0..num_elements];
+                .Slice => {
+                    var length: c_int = undefined;
+                    var bytes = tcl.Tcl_GetByteArrayFromObj(obj, &length);
+
+                    const num_elements = @divFloor(@intCast(usize, length), @sizeOf(ptr.child));
+                    return @ptrCast([*]ptr.child, bytes)[0..num_elements];
+                },
             }
         },
 
@@ -344,8 +348,16 @@ pub fn ToObj(value: anytype) err.TclError!Obj {
             return NewByteArrayObj(value);
         },
 
-        .Pointer => {
-            return NewIntObj(@ptrToInt(value));
+        .Pointer => |ptr| {
+            switch (ptr.size) {
+                .One, .Many, .C => {
+                    return NewIntObj(@ptrToInt(value));
+                },
+
+                .Slice => {
+                    return tcl.Tcl_NewByteArrayObj(value.ptr, @intCast(c_int, value.len * @sizeOf(ptr.child)));
+                },
+            }
         },
 
         // Void results in an empty TCL object.

@@ -15,6 +15,7 @@ const Struct = struct {
     ptr: *u8 = undefined,
     enm: Enum,
     nested: struct { f0: u32, f1: u8 },
+    slice: []u8,
 
     pub fn decl1(s: *Struct) void {
         s.bl = !s.bl;
