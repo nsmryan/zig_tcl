@@ -333,6 +333,5 @@ test "enum variants" {
 
     var resultObj: obj.Obj = undefined;
     try err.HandleReturn(tcl.Tcl_ListObjIndex(interp, resultList, 0, &resultObj));
-    std.debug.print("{s}\n", .{try obj.GetStringFromObj(resultObj)});
     try std.testing.expectEqualSlices(u8, "v0", try obj.GetStringFromObj(resultObj));
 }

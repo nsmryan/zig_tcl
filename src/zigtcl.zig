@@ -16,6 +16,9 @@ usingnamespace enm;
 pub const unn = @import("union.zig");
 usingnamespace unn;
 
+pub const alloc = @import("alloc.zig");
+usingnamespace alloc;
+
 pub const tcl = @import("tcl.zig");
 usingnamespace tcl;
 

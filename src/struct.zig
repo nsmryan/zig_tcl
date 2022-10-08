@@ -32,8 +32,6 @@ pub fn RegisterStruct(comptime strt: type, comptime name: []const u8, comptime p
     var cmdName = pkg ++ "::" ++ name ++ terminator;
     _ = obj.CreateObjCommand(interp, cmdName, StructCommand(strt).command) catch |errResult| return err.ErrorToInt(errResult);
 
-    std.debug.print("struct {s}\n", .{cmdName});
-
     return tcl.TCL_OK;
 }
 
