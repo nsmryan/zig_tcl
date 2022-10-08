@@ -178,7 +178,8 @@ export fn Zigexample_Init(interp: zt.Interp) c_int {
     const Inner = Struct.Inner;
     _ = zt.RegisterStruct(Inner, "Inner", "zigtcl", interp);
 
-    //_ = zt.RegisterStruct(std.mem.Allocator, "Allocator", "zigtcl", interp);
+    _ = zt.RegisterStruct(std.mem.Allocator, "Allocator", "zigtcl", interp);
+    _ = zt.tcl.Tcl_CreateObjCommand(interp, "zigtcl::tcl_allocator", zt.StructCommand(std.mem.Allocator).StructInstanceCommand, @ptrCast(zt.tcl.ClientData, &zt.alloc.tcl_allocator), null);
 
     return zt.tcl.Tcl_PkgProvide(interp, "zigtcl", "0.1.0");
 }

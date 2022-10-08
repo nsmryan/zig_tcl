@@ -144,7 +144,7 @@ pub fn StructCommand(comptime strt: type) type {
             return err.TclError.TCL_ERROR;
         }
 
-        fn StructInstanceCommand(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) callconv(.C) c_int {
+        pub fn StructInstanceCommand(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) callconv(.C) c_int {
             _ = cdata;
             // TODO support the cget, configure interface in syntax.tcl
             var strt_ptr = @ptrCast(*strt, @alignCast(@alignOf(strt), cdata));

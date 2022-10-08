@@ -371,6 +371,16 @@ pub fn ToObj(value: anytype) err.TclError!Obj {
             return NewIntObj(@ptrToInt(value));
         },
 
+        .Optional => {
+            if (value) |result| {
+                return ToObj(result);
+            } else {
+                // Just return an empty object for now. This is potentially ambiguous, but a more complete design,
+                // such as using a unique object with a unique TCL type, is more complex.
+                return NewObj();
+            }
+        },
+
         // NOTE for complex types, maybe allocate and return pointer obj.
         // There may be some design in which a string handle is return instead, and looked
         // up within the extension. This may be safer?

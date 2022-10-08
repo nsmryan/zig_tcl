@@ -3,7 +3,8 @@ const Allocator = std.mem.Allocator;
 
 const tcl = @import("tcl.zig");
 
-pub const tcl_allocator = Allocator{
+// This initialization came from std.heap.raw_c_allocator as an example.
+pub var tcl_allocator = Allocator{
     .ptr = undefined,
     .vtable = &tcl_allocator_vtable,
 };
