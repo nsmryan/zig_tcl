@@ -80,7 +80,7 @@ pub fn UnionCommand(comptime unn: type) type {
                         }
 
                         const field = @field(unn, decl.name);
-                        const field_info = call.FuncInfo(@typeInfo(@TypeOf(field)));
+                        const field_info = call.FuncInfo(@typeInfo(@TypeOf(field))) orelse continue;
 
                         comptime {
                             if (!utils.CallableFunction(field_info)) {
@@ -236,7 +236,7 @@ pub fn UnionCommand(comptime unn: type) type {
                 }
 
                 const field = @field(unn, decl.name);
-                const field_info = call.FuncInfo(@typeInfo(@TypeOf(field)));
+                const field_info = call.FuncInfo(@typeInfo(@TypeOf(field))) orelse continue;
 
                 comptime {
                     if (!utils.CallableDecl(unn, field_info)) {
