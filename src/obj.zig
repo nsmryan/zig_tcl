@@ -355,7 +355,7 @@ pub fn ToObj(value: anytype) err.TclError!Obj {
                 },
 
                 .Slice => {
-                    return tcl.Tcl_NewByteArrayObj(value.ptr, @intCast(c_int, value.len * @sizeOf(ptr.child)));
+                    return tcl.Tcl_NewByteArrayObj(@ptrCast(*u8, value.ptr), @intCast(c_int, value.len * @sizeOf(ptr.child)));
                 },
             }
         },
