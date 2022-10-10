@@ -57,6 +57,7 @@ pub fn StructCommand(comptime strt: type) type {
                         obj.SetStrResult(interp, "Could not create command!");
                         return err.TclError.TCL_ERROR;
                     } else {
+                        obj.SetObjResult(interp, tcl.Tcl_NewStringObj(name.ptr, @intCast(c_int, name.len)));
                         return;
                     }
                 },
@@ -535,4 +536,27 @@ test "struct bytes" {
     try std.testing.expectEqual(tcl.TCL_OK, result);
     const resultObj = tcl.Tcl_GetObjResult(interp);
     try std.testing.expectEqual(@as(u32, 123), try obj.GetFromObj(u32, interp, resultObj));
+}
+
+test "struct return name" {
+    const s = struct { field0: u32 };
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    var result: c_int = undefined;
+    result = RegisterStruct(s, "s", "test", interp);
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "set inst [test::s create instance]");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "$inst set field0 101");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "$inst get field0");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+    const value = tcl.Tcl_GetStringResult(interp);
+
+    const value_slice = value[0..std.mem.indexOfSentinel(u8, 0, value)];
+    try std.testing.expect(std.mem.eql(u8, "101", value_slice));
 }

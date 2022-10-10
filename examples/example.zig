@@ -159,8 +159,6 @@ pub fn test_function(arg0: u8, arg1: u8) u32 {
 }
 
 export fn Zigexample_Init(interp: zt.Interp) c_int {
-    //std.debug.print("\nStarting Zig TCL Test {d}\n", .{interp});
-
     if (builtin.os.tag != .windows) {
         var rc = zt.tcl.Tcl_InitStubs(interp, "8.6", 0);
         std.debug.print("\nInit result {s}\n", .{rc});

@@ -59,6 +59,7 @@ pub fn UnionCommand(comptime unn: type) type {
                         obj.SetStrResult(interp, "Could not create command!");
                         return err.TclError.TCL_ERROR;
                     } else {
+                        obj.SetObjResult(interp, tcl.Tcl_NewStringObj(name.ptr, @intCast(c_int, name.len)));
                         return;
                     }
                 },
