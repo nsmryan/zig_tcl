@@ -153,6 +153,11 @@ pub fn UnionCommand(comptime unn: type) type {
                 return tcl.TCL_ERROR;
             }
 
+            if (@alignOf(unn) == 0) {
+                obj.SetStrResult(interp, "Cannot instantiate union!");
+                return tcl.TCL_ERROR;
+            }
+
             var ptr = @ptrCast(*unn, @alignCast(@alignOf(unn), cdata));
             const cmd = obj.GetIndexFromObj(UnionInstanceCmds, interp, objv[1], "commands") catch |errResult| return err.TclResult(errResult);
             switch (cmd) {

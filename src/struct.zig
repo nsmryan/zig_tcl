@@ -148,6 +148,10 @@ pub fn StructCommand(comptime strt: type) type {
         pub fn StructInstanceCommand(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) callconv(.C) c_int {
             _ = cdata;
             // TODO support the cget, configure interface in syntax.tcl
+            if (@alignOf(strt) == 0) {
+                obj.SetStrResult(interp, "Cannot instantiate struct!");
+                return tcl.TCL_ERROR;
+            }
             var strt_ptr = @ptrCast(*strt, @alignCast(@alignOf(strt), cdata));
             const cmd = obj.GetIndexFromObj(StructInstanceCmds, interp, objv[1], "commands") catch |errResult| return err.TclResult(errResult);
             switch (cmd) {
