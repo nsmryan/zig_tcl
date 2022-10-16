@@ -22,6 +22,7 @@ pub const UnionInstanceCmds = enum {
     call,
     bytes,
     setBytes,
+    ptr,
 };
 
 pub fn RegisterUnion(comptime unn: type, comptime name: []const u8, comptime pkg: []const u8, interp: obj.Interp) c_int {
@@ -180,6 +181,10 @@ pub fn UnionCommand(comptime unn: type) type {
                 .setBytes => {
                     return err.TclResult(UnionSetBytesCmd(ptr, interp, obj.ObjSlice(objc, objv)));
                 },
+
+                .ptr => {
+                    return err.TclResult(UnionPtrCmd(ptr, interp, obj.ObjSlice(objc, objv)));
+                },
             }
             obj.SetStrResult(interp, "Unexpected subcommand!");
             return tcl.TCL_ERROR;
@@ -281,6 +286,14 @@ pub fn UnionCommand(comptime unn: type) type {
             } else {
                 obj.SetStrResult(interp, "Byte array size does not match union!");
                 return err.TclError.TCL_ERROR;
+            }
+        }
+
+        pub fn UnionPtrCmd(ptr: *unn, interp: obj.Interp, objv: []const obj.Obj) err.TclError!void {
+            if (objv.len == 2) {
+                obj.SetObjResult(interp, try obj.ToObj(ptr));
+            } else {
+                tcl.Tcl_WrongNumArgs(interp, @intCast(c_int, objv.len), objv.ptr, "ptr");
             }
         }
     };
@@ -446,6 +459,31 @@ test "unn bytes" {
     try std.testing.expectEqual(tcl.TCL_OK, result);
     const resultObj = tcl.Tcl_GetObjResult(interp);
     try std.testing.expectEqual(@as(f64, 10.0), try obj.GetFromObj(f64, interp, resultObj));
+}
+
+test "union ptr" {
+    const u = union(enum) {
+        field0: u64,
+        field1: u64,
+    };
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    var result: c_int = undefined;
+    result = RegisterUnion(u, "u", "test", interp);
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "test::u create instance");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "instance variant field0 101");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "instance ptr");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+    var u_ptr = try obj.GetFromObj(*u, interp, tcl.Tcl_GetObjResult(interp));
+
+    try std.testing.expectEqual(@as(u64, 101), u_ptr.field0);
 }
 
 test "union size" {
