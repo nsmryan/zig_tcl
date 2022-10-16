@@ -1,10 +1,11 @@
 load zig-out/lib/libzigexample.so
 
 package require zigtcl
+namespace import zigtcl::*
 
 
 proc runTests { } {
-    zigtcl::zigcreate struct
+    zigcreate struct
 
     checkField bl 1
     checkField int 10
@@ -28,7 +29,7 @@ proc runTests { } {
     if { $value != $result } { throw ZIGTCLINVALID "enm '$result' did not match '$value'"  }
 
     set value 3
-    set result [zigtcl::zig_function 1 2]
+    set result [zig_function 1 2]
     if { $value != $result } { throw ZIGTCLINVALID "test function '$result' did not match '$value'"   }
 
     struct bl 0
@@ -51,7 +52,7 @@ proc checkField { name value } {
     if { $result != $value } { throw ZIGTCLINVALID "$name '$result' did not match '$value'" }
 }
 
-zigtcl::Struct create s
+Struct create s
 puts "bl [s set bl 1]"
 puts "bl [s get bl]"
 s call decl1

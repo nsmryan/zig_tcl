@@ -167,6 +167,8 @@ export fn Zigexample_Init(interp: zt.Interp) c_int {
         std.debug.print("\nInit result {s}\n", .{rc});
     }
 
+    var ns = zt.tcl.Tcl_CreateNamespace(interp, "zigtcl", null, null);
+
     _ = zt.CreateObjCommand(interp, "zigtcl::zigcreate", Hello_ZigTclCmd) catch return zt.tcl.TCL_ERROR;
 
     zt.WrapFunction(test_function, "zigtcl::zig_function", interp) catch return zt.tcl.TCL_ERROR;
@@ -178,6 +180,8 @@ export fn Zigexample_Init(interp: zt.Interp) c_int {
 
     _ = zt.RegisterStruct(std.mem.Allocator, "Allocator", "zigtcl", interp);
     _ = zt.tcl.Tcl_CreateObjCommand(interp, "zigtcl::tcl_allocator", zt.StructCommand(std.mem.Allocator).StructInstanceCommand, @ptrCast(zt.tcl.ClientData, &zt.alloc.tcl_allocator), null);
+
+    _ = zt.tcl.Tcl_Export(interp, ns, "*", 0);
 
     return zt.tcl.Tcl_PkgProvide(interp, "zigtcl", "0.1.0");
 }
