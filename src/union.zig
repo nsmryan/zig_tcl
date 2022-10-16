@@ -59,7 +59,6 @@ pub fn UnionCommand(comptime unn: type) type {
                         obj.SetStrResult(interp, "Could not create command!");
                         return err.TclError.TCL_ERROR;
                     } else {
-                        obj.SetObjResult(interp, tcl.Tcl_NewStringObj(name.ptr, @intCast(c_int, name.len)));
                         return;
                     }
                 },
@@ -150,11 +149,6 @@ pub fn UnionCommand(comptime unn: type) type {
             // support the cget, field, call, configure interface in syntax.tcl
             if (objc < 2) {
                 tcl.Tcl_WrongNumArgs(interp, objc, objv, "field name [value]");
-                return tcl.TCL_ERROR;
-            }
-
-            if (@alignOf(unn) == 0) {
-                obj.SetStrResult(interp, "Cannot instantiate union!");
                 return tcl.TCL_ERROR;
             }
 

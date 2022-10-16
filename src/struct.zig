@@ -21,6 +21,7 @@ pub const StructInstanceCmds = enum {
     call,
     bytes,
     setBytes,
+    ptr,
 };
 
 pub fn RegisterStruct(comptime strt: type, comptime name: []const u8, comptime pkg: []const u8, interp: obj.Interp) c_int {
@@ -57,7 +58,6 @@ pub fn StructCommand(comptime strt: type) type {
                         obj.SetStrResult(interp, "Could not create command!");
                         return err.TclError.TCL_ERROR;
                     } else {
-                        obj.SetObjResult(interp, tcl.Tcl_NewStringObj(name.ptr, @intCast(c_int, name.len)));
                         return;
                     }
                 },
@@ -152,6 +152,7 @@ pub fn StructCommand(comptime strt: type) type {
                 obj.SetStrResult(interp, "Cannot instantiate struct!");
                 return tcl.TCL_ERROR;
             }
+
             var strt_ptr = @ptrCast(*strt, @alignCast(@alignOf(strt), cdata));
             const cmd = obj.GetIndexFromObj(StructInstanceCmds, interp, objv[1], "commands") catch |errResult| return err.TclResult(errResult);
             switch (cmd) {
@@ -173,6 +174,10 @@ pub fn StructCommand(comptime strt: type) type {
 
                 .setBytes => {
                     return err.TclResult(StructSetBytesCmd(strt_ptr, interp, obj.ObjSlice(objc, objv)));
+                },
+
+                .ptr => {
+                    return err.TclResult(StructPtrCmd(strt_ptr, interp, obj.ObjSlice(objc, objv)));
                 },
             }
             obj.SetStrResult(interp, "Unexpected subcommand!");
@@ -312,6 +317,12 @@ pub fn StructCommand(comptime strt: type) type {
                 obj.SetStrResult(interp, "Byte array size does not match struct!");
                 return err.TclError.TCL_ERROR;
             }
+        }
+
+        pub fn StructPtrCmd(ptr: *strt, interp: obj.Interp, objv: []const obj.Obj) err.TclError!void {
+            _ = interp;
+            _ = objv;
+            obj.SetObjResult(interp, try obj.ToObj(ptr));
         }
     };
 }
@@ -540,27 +551,4 @@ test "struct bytes" {
     try std.testing.expectEqual(tcl.TCL_OK, result);
     const resultObj = tcl.Tcl_GetObjResult(interp);
     try std.testing.expectEqual(@as(u32, 123), try obj.GetFromObj(u32, interp, resultObj));
-}
-
-test "struct return name" {
-    const s = struct { field0: u32 };
-    var interp = tcl.Tcl_CreateInterp();
-    defer tcl.Tcl_DeleteInterp(interp);
-
-    var result: c_int = undefined;
-    result = RegisterStruct(s, "s", "test", interp);
-    try std.testing.expectEqual(tcl.TCL_OK, result);
-
-    result = tcl.Tcl_Eval(interp, "set inst [test::s create instance]");
-    try std.testing.expectEqual(tcl.TCL_OK, result);
-
-    result = tcl.Tcl_Eval(interp, "$inst set field0 101");
-    try std.testing.expectEqual(tcl.TCL_OK, result);
-
-    result = tcl.Tcl_Eval(interp, "$inst get field0");
-    try std.testing.expectEqual(tcl.TCL_OK, result);
-    const value = tcl.Tcl_GetStringResult(interp);
-
-    const value_slice = value[0..std.mem.indexOfSentinel(u8, 0, value)];
-    try std.testing.expect(std.mem.eql(u8, "101", value_slice));
 }
