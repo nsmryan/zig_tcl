@@ -13,6 +13,7 @@ pub const StructCmds = enum {
     call,
     fields,
     fromBytes,
+    size,
 };
 
 pub const StructInstanceCmds = enum {
@@ -138,6 +139,11 @@ pub fn StructCommand(comptime strt: type) type {
                     } else {
                         return;
                     }
+                },
+
+                .size => {
+                    obj.SetObjResult(interp, try obj.ToObj(@intCast(c_int, @sizeOf(strt))));
+                    return;
                 },
             }
 
@@ -551,4 +557,22 @@ test "struct bytes" {
     try std.testing.expectEqual(tcl.TCL_OK, result);
     const resultObj = tcl.Tcl_GetObjResult(interp);
     try std.testing.expectEqual(@as(u32, 123), try obj.GetFromObj(u32, interp, resultObj));
+}
+
+test "struct size" {
+    const s = struct {
+        field0: f64,
+        field1: f64,
+    };
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    var result: c_int = undefined;
+    result = RegisterStruct(s, "s", "test", interp);
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "test::s size");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+    const resultObj = tcl.Tcl_GetObjResult(interp);
+    try std.testing.expectEqual(@as(u32, @sizeOf(s)), try obj.GetFromObj(u32, interp, resultObj));
 }

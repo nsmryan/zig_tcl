@@ -13,6 +13,7 @@ pub const UnionCmds = enum {
     call,
     variants,
     fromBytes,
+    size,
 };
 
 pub const UnionInstanceCmds = enum {
@@ -137,6 +138,11 @@ pub fn UnionCommand(comptime unn: type) type {
                     } else {
                         return;
                     }
+                },
+
+                .size => {
+                    obj.SetObjResult(interp, try obj.ToObj(@intCast(c_int, @sizeOf(unn))));
+                    return;
                 },
             }
 
@@ -440,4 +446,22 @@ test "unn bytes" {
     try std.testing.expectEqual(tcl.TCL_OK, result);
     const resultObj = tcl.Tcl_GetObjResult(interp);
     try std.testing.expectEqual(@as(f64, 10.0), try obj.GetFromObj(f64, interp, resultObj));
+}
+
+test "union size" {
+    const u = union(enum) {
+        field0: u8,
+        field1: f64,
+    };
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    var result: c_int = undefined;
+    result = RegisterUnion(u, "u", "test", interp);
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "test::u size");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+    const resultObj = tcl.Tcl_GetObjResult(interp);
+    try std.testing.expectEqual(@as(u32, @sizeOf(u)), try obj.GetFromObj(u32, interp, resultObj));
 }

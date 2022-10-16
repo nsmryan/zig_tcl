@@ -13,6 +13,7 @@ pub const EnumCmds = enum {
     value,
     name,
     variants,
+    size,
 };
 
 pub const EnumVariantCmds = enum {
@@ -127,6 +128,11 @@ pub fn EnumCommand(comptime enm: type) type {
                     }
 
                     obj.SetObjResult(interp, resultList);
+                },
+
+                .size => {
+                    obj.SetObjResult(interp, try obj.ToObj(@intCast(c_int, @sizeOf(enm))));
+                    return;
                 },
             }
         }
@@ -334,4 +340,22 @@ test "enum variants" {
     var resultObj: obj.Obj = undefined;
     try err.HandleReturn(tcl.Tcl_ListObjIndex(interp, resultList, 0, &resultObj));
     try std.testing.expectEqualSlices(u8, "v0", try obj.GetStringFromObj(resultObj));
+}
+
+test "enum size" {
+    const e = enum(u8) {
+        v0,
+        v1,
+    };
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    var result: c_int = undefined;
+    result = RegisterEnum(e, "e", "test", interp);
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "test::e size");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+    const resultObj = tcl.Tcl_GetObjResult(interp);
+    try std.testing.expectEqual(@as(u32, @sizeOf(e)), try obj.GetFromObj(u32, interp, resultObj));
 }
