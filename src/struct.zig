@@ -652,3 +652,27 @@ test "struct size" {
     const resultObj = tcl.Tcl_GetObjResult(interp);
     try std.testing.expectEqual(@as(u32, @sizeOf(s)), try obj.GetFromObj(u32, interp, resultObj));
 }
+
+test "struct with" {
+    const s = struct {
+        field0: f64,
+        field1: u32,
+    };
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    var result: c_int = undefined;
+    result = RegisterStruct(s, "s", "test", interp);
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "test::s create instance");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "test::s with [instance ptr] set field1 101");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "instance get field1");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+    const resultObj = tcl.Tcl_GetObjResult(interp);
+    try std.testing.expectEqual(@as(u32, 101), try obj.GetFromObj(u32, interp, resultObj));
+}

@@ -14,6 +14,7 @@ pub const UnionCmds = enum {
     variants,
     fromBytes,
     size,
+    with,
 };
 
 pub const UnionInstanceCmds = enum {
@@ -143,6 +144,19 @@ pub fn UnionCommand(comptime unn: type) type {
 
                 .size => {
                     obj.SetObjResult(interp, try obj.ToObj(@intCast(c_int, @sizeOf(unn))));
+                    return;
+                },
+
+                .with => {
+                    if (objv.len < 4) {
+                        tcl.Tcl_WrongNumArgs(interp, @intCast(c_int, objv.len), objv.ptr, "with pointer decl args...");
+                        return err.TclError.TCL_ERROR;
+                    }
+                    const ptr = try obj.GetFromObj(*unn, interp, objv[2]);
+                    const objc = @intCast(c_int, objv.len - 2);
+                    var objv_subset = objv[2..].ptr;
+                    var clientData = @ptrCast(tcl.ClientData, ptr);
+                    try err.HandleReturn(UnionInstanceCommand(clientData, interp, objc, objv_subset));
                     return;
                 },
             }
@@ -502,4 +516,28 @@ test "union size" {
     try std.testing.expectEqual(tcl.TCL_OK, result);
     const resultObj = tcl.Tcl_GetObjResult(interp);
     try std.testing.expectEqual(@as(u32, @sizeOf(u)), try obj.GetFromObj(u32, interp, resultObj));
+}
+
+test "union with" {
+    const u = union(enum) {
+        field0: f64,
+        field1: u32,
+    };
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    var result: c_int = undefined;
+    result = RegisterUnion(u, "u", "test", interp);
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "test::u create instance");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "test::u with [instance ptr] variant field1 101");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "instance value field1");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+    const resultObj = tcl.Tcl_GetObjResult(interp);
+    try std.testing.expectEqual(@as(u32, 101), try obj.GetFromObj(u32, interp, resultObj));
 }
