@@ -147,7 +147,7 @@ pub fn UnionCommand(comptime unn: type) type {
                 },
             }
 
-            obj.SetStrResult(interp, "Unexpected subcommand name when creating unn!");
+            obj.SetStrResult(interp, "Unexpected subcommand name on union type!");
             return err.TclError.TCL_ERROR;
         }
 

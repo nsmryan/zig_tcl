@@ -14,6 +14,7 @@ pub const StructCmds = enum {
     fields,
     fromBytes,
     size,
+    with,
 };
 
 pub const StructInstanceCmds = enum {
@@ -145,14 +146,26 @@ pub fn StructCommand(comptime strt: type) type {
                     obj.SetObjResult(interp, try obj.ToObj(@intCast(c_int, @sizeOf(strt))));
                     return;
                 },
+
+                .with => {
+                    if (objv.len < 4) {
+                        tcl.Tcl_WrongNumArgs(interp, @intCast(c_int, objv.len), objv.ptr, "with pointer decl args...");
+                        return err.TclError.TCL_ERROR;
+                    }
+                    const ptr = try obj.GetFromObj(*strt, interp, objv[2]);
+                    const objc = @intCast(c_int, objv.len - 2);
+                    var objv_subset = objv[2..].ptr;
+                    var clientData = @ptrCast(tcl.ClientData, ptr);
+                    try err.HandleReturn(StructInstanceCommand(clientData, interp, objc, objv_subset));
+                    return;
+                },
             }
 
-            obj.SetStrResult(interp, "Unexpected subcommand name when creating struct!");
+            obj.SetStrResult(interp, "Unexpected subcommand name on struct type!");
             return err.TclError.TCL_ERROR;
         }
 
         pub fn StructInstanceCommand(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) callconv(.C) c_int {
-            _ = cdata;
             // TODO support the cget, configure interface in syntax.tcl
             if (@alignOf(strt) == 0) {
                 obj.SetStrResult(interp, "Cannot instantiate struct!");

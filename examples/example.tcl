@@ -58,6 +58,12 @@ puts "bl [s get bl]"
 s call decl1
 puts "!bl [s get bl]"
 
+set ptr [s ptr]
+Struct with $ptr set bl 0
+puts "[s get bl] == 0"
+Struct with $ptr set bl 1
+puts "[s get bl] == 1"
+
 s set slice "world"
 puts "s get slice [s get slice] == 'world'"
 
