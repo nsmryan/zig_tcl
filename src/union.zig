@@ -235,7 +235,23 @@ pub fn UnionCommand(comptime unn: type) type {
             comptime var fields = std.meta.fields(unn);
             inline for (fields) |field| {
                 if (std.mem.eql(u8, name, field.name)) {
-                    ptr.* = @unionInit(unn, field.name, try obj.GetFromObj(field.field_type, interp, objv[3]));
+                    if (objv.len > 4) {
+                        if (@typeInfo(field.field_type) != .Struct) {
+                            obj.SetStrResult(interp, "Multiple argument variants only work on anonomous structs!");
+                            return err.TclError.TCL_ERROR;
+                        }
+                        var args: field.field_type = undefined;
+
+                        var obj_index: usize = 3;
+                        comptime var chosen_fields = std.meta.fields(field.field_type);
+                        inline for (chosen_fields) |chosen_field| {
+                            @field(args, chosen_field.name) = try obj.GetFromObj(chosen_field.field_type, interp, objv[obj_index]);
+                            obj_index += 1;
+                        }
+                        ptr.* = @unionInit(unn, field.name, args);
+                    } else {
+                        ptr.* = @unionInit(unn, field.name, try obj.GetFromObj(field.field_type, interp, objv[3]));
+                    }
                     return;
                 }
             }
@@ -359,6 +375,34 @@ test "unn create/variant/value" {
         const resultObj = tcl.Tcl_GetObjResult(interp);
         try std.testing.expectEqual(@as(f64, 1.4), try obj.GetFromObj(f64, interp, resultObj));
     }
+}
+
+test "unn anonomous struct variant" {
+    const u = union(enum) {
+        v0: struct { field0: u32, field1: u8 },
+    };
+    var interp = tcl.Tcl_CreateInterp();
+    defer tcl.Tcl_DeleteInterp(interp);
+
+    var unn: u = .{ .v0 = .{ .field0 = 101, .field1 = 202 } };
+
+    var result: c_int = undefined;
+    result = RegisterUnion(u, "u", "test", interp);
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "test::u create instance");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "instance variant v0 101 202");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+
+    result = tcl.Tcl_Eval(interp, "instance ptr");
+    try std.testing.expectEqual(tcl.TCL_OK, result);
+    const resultObj = tcl.Tcl_GetObjResult(interp);
+
+    var unn_ptr = try obj.GetFromObj(*u, interp, resultObj);
+    try std.testing.expectEqual(unn.v0.field0, unn_ptr.v0.field0);
+    try std.testing.expectEqual(unn.v0.field1, unn_ptr.v0.field1);
 }
 
 test "unn create/call" {
