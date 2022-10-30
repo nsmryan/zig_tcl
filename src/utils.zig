@@ -6,7 +6,7 @@ const obj = @import("obj.zig");
 
 const tcl = @import("tcl.zig");
 
-pub fn CallableFunction(comptime fn_info: std.builtin.TypeInfo.Fn) bool {
+pub fn CallableFunction(comptime fn_info: std.builtin.Type.Fn) bool {
     if (fn_info.is_generic) {
         return false;
     }
@@ -18,7 +18,7 @@ pub fn CallableFunction(comptime fn_info: std.builtin.TypeInfo.Fn) bool {
     return true;
 }
 
-pub fn CallableDecl(comptime typ: type, comptime fn_info: std.builtin.TypeInfo.Fn) bool {
+pub fn CallableDecl(comptime typ: type, comptime fn_info: std.builtin.Type.Fn) bool {
     if (!CallableFunction(fn_info)) {
         return false;
     }

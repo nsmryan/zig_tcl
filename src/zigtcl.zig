@@ -1,26 +1,26 @@
 pub const err = @import("err.zig");
-usingnamespace err;
+pub usingnamespace err;
 
 pub const obj = @import("obj.zig");
-usingnamespace obj;
+pub usingnamespace obj;
 
 pub const call = @import("call.zig");
-usingnamespace call;
+pub usingnamespace call;
 
 pub const strt = @import("struct.zig");
-usingnamespace strt;
+pub usingnamespace strt;
 
 pub const enm = @import("enum.zig");
-usingnamespace enm;
+pub usingnamespace enm;
 
 pub const unn = @import("union.zig");
-usingnamespace unn;
+pub usingnamespace unn;
 
 pub const alloc = @import("alloc.zig");
-usingnamespace alloc;
+pub usingnamespace alloc;
 
 pub const tcl = @import("tcl.zig");
-usingnamespace tcl;
+pub usingnamespace tcl;
 
 // NOTES
 // create a command that is given a string name, and cdata is a pointer to an allocator,

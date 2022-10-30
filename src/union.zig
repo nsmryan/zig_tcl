@@ -166,7 +166,6 @@ pub fn UnionCommand(comptime unn: type) type {
         }
 
         fn UnionInstanceCommand(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) callconv(.C) c_int {
-            _ = cdata;
             // support the cget, field, call, configure interface in syntax.tcl
             if (objc < 2) {
                 tcl.Tcl_WrongNumArgs(interp, objc, objv, "field name [value]");

@@ -168,19 +168,19 @@ pub const Obj = [*c]tcl.Tcl_Obj;
 
 pub const ZigTclCmd = fn (cdata: tcl.ClientData, interp: Interp, objv: []const Obj) err.TclError!void;
 
-pub fn CallCmd(function: ZigTclCmd, cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) c_int {
+pub fn CallCmd(function: *const ZigTclCmd, cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) c_int {
     return err.TclResult(function(cdata, interp, objv[0..@intCast(usize, objc)]));
 }
 
 /// Call a ZigTclCmd function, passing in the TCL C API style arguments and returning a c_int result.
 pub export fn Wrap_ZigCmd(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objc: c_int, objv: [*c]const [*c]tcl.Tcl_Obj) c_int {
-    var function = @ptrCast(ZigTclCmd, cdata);
+    var function = @ptrCast(*const ZigTclCmd, cdata);
     return CallCmd(function, cdata, interp, objc, objv);
 }
 
 /// Create a new TCL command that executes a Zig function.
 /// The Zig function is given using the ziggy ZigTclCmd signature.
-pub fn CreateObjCommand(interp: Interp, name: [*:0]const u8, function: ZigTclCmd) err.TclError!tcl.Tcl_Command {
+pub fn CreateObjCommand(interp: Interp, name: [*:0]const u8, function: *const ZigTclCmd) err.TclError!tcl.Tcl_Command {
     const result = tcl.Tcl_CreateObjCommand(interp, name, Wrap_ZigCmd, @intToPtr(tcl.ClientData, @ptrToInt(function)), null);
     if (result == null) {
         return err.TclError.TCL_ERROR;
@@ -368,7 +368,7 @@ pub fn ToObj(value: anytype) err.TclError!Obj {
         },
 
         .Fn => {
-            return NewIntObj(@ptrToInt(value));
+            return NewIntObj(@ptrToInt(&value));
         },
 
         .Optional => {
@@ -526,13 +526,13 @@ test "fn obj" {
     var interp = tcl.Tcl_CreateInterp();
     defer tcl.Tcl_DeleteInterp(interp);
 
-    const func = struct {
+    const func = &struct {
         fn test_func(arg: u8) u8 {
             return arg + 1;
         }
     }.test_func;
 
-    try std.testing.expectEqual(func, try GetFromObj(fn (u8) u8, interp, try ToObj(func)));
+    try std.testing.expectEqual(func, try GetFromObj(*const fn (u8) u8, interp, try ToObj(func)));
 }
 
 test "ptr obj" {
@@ -549,7 +549,7 @@ test "ptr obj" {
 pub fn IncrRefCount(obj: Obj) void {
     if (@hasDecl(tcl, "Tcl_IncrRefCount")) {
         //tcl.Tcl_IncrRefCount(obj);
-        tcl.Tcl_DbIncrRefCount(obj, @src().fn_name, @src().line);
+        tcl.Tcl_DbIncrRefCount(obj, @ptrCast([*c]const u8, @src().fn_name), @intCast(c_int, @src().line));
     } else {
         // NOTE __LINE__ and __FILE__ not implemented in Zig: https://github.com/ziglang/zig/issues/2029
         tcl.Tcl_DbIncrRefCount(obj, @src().fn_name, @src().line);
@@ -559,7 +559,7 @@ pub fn IncrRefCount(obj: Obj) void {
 pub fn DecrRefCount(obj: Obj) void {
     if (@hasDecl(tcl, "Tcl_DecrRefCount")) {
         //tcl.Tcl_DecrRefCount(obj);
-        tcl.Tcl_DbDecrRefCount(obj, @src().fn_name, @src().line);
+        tcl.Tcl_DbDecrRefCount(obj, @ptrCast([*c]const u8, @src().fn_name), @intCast(c_int, @src().line));
     } else {
         // NOTE __LINE__ and __FILE__ not implemented in Zig: https://github.com/ziglang/zig/issues/2029
         tcl.Tcl_DbDecrRefCount(obj, @src().fn_name, @src().line);

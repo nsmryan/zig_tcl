@@ -31,7 +31,6 @@ fn alloc(_: *anyopaque, len: usize, ptr_align: u29, len_align: u29, ra: usize) e
 }
 
 fn resize(_: *anyopaque, buf: []u8, buf_align: u29, new_len: usize, len_align: u29, ra: usize) ?usize {
-    _ = buf;
     _ = buf_align;
     _ = len_align;
     _ = ra;

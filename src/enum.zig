@@ -32,7 +32,7 @@ pub fn RegisterEnum(comptime enm: type, comptime name: []const u8, comptime pkg:
     _ = obj.CreateObjCommand(interp, cmdName, EnumCommand(enm).command) catch |errResult| return err.ErrorToInt(errResult);
 
     inline for (@typeInfo(enm).Enum.fields) |variant| {
-        const variantCmdName = pkg ++ "::" ++ @typeName(enm) ++ "::" ++ variant.name ++ terminator;
+        const variantCmdName = pkg ++ "::" ++ name ++ "::" ++ variant.name ++ terminator;
         _ = obj.CreateObjCommand(interp, variantCmdName, EnumVariantCommand(enm, variant.name, variant.value).command) catch |errResult| return err.ErrorToInt(errResult);
     }
 
@@ -218,22 +218,22 @@ test "enum variant name/value" {
     result = RegisterEnum(e, "e", "test", interp);
     try std.testing.expectEqual(tcl.TCL_OK, result);
 
-    try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e::v0 value"));
+    try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e value v0"));
     try std.testing.expectEqual(@as(u8, 0), try obj.GetFromObj(u8, interp, tcl.Tcl_GetObjResult(interp)));
 
-    try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e::v1 value"));
+    try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e value v1"));
     try std.testing.expectEqual(@as(u8, 1), try obj.GetFromObj(u8, interp, tcl.Tcl_GetObjResult(interp)));
 
-    try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e::v2 value"));
+    try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e value v2"));
     try std.testing.expectEqual(@as(u8, 2), try obj.GetFromObj(u8, interp, tcl.Tcl_GetObjResult(interp)));
 
-    try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e::v0 name"));
+    try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e name 0"));
     try std.testing.expectEqualSlices(u8, "v0", try obj.GetStringFromObj(tcl.Tcl_GetObjResult(interp)));
 
-    try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e::v1 name"));
+    try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e name 1"));
     try std.testing.expectEqualSlices(u8, "v1", try obj.GetStringFromObj(tcl.Tcl_GetObjResult(interp)));
 
-    try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e::v2 name"));
+    try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::e name 2"));
     try std.testing.expectEqualSlices(u8, "v2", try obj.GetStringFromObj(tcl.Tcl_GetObjResult(interp)));
 }
 

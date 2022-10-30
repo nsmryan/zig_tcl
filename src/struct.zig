@@ -120,6 +120,7 @@ pub fn StructCommand(comptime strt: type) type {
 
                     const name = try obj.GetStringFromObj(objv[2]);
 
+                    //obj.IncrRefCount(@ptrCast([*c]const u8, objv[3]));
                     obj.IncrRefCount(objv[3]);
 
                     var length: c_int = undefined;
@@ -148,16 +149,21 @@ pub fn StructCommand(comptime strt: type) type {
                 },
 
                 .with => {
-                    if (objv.len < 4) {
-                        tcl.Tcl_WrongNumArgs(interp, @intCast(c_int, objv.len), objv.ptr, "with pointer decl args...");
+                    if (@sizeOf(strt) > 0) {
+                        if (objv.len < 4) {
+                            tcl.Tcl_WrongNumArgs(interp, @intCast(c_int, objv.len), objv.ptr, "with pointer decl args...");
+                            return err.TclError.TCL_ERROR;
+                        }
+                        const ptr = try obj.GetFromObj(*strt, interp, objv[2]);
+                        const objc = @intCast(c_int, objv.len - 2);
+                        var objv_subset = objv[2..].ptr;
+                        var clientData = @ptrCast(tcl.ClientData, ptr);
+                        try err.HandleReturn(StructInstanceCommand(clientData, interp, objc, objv_subset));
+                        return;
+                    } else {
+                        obj.SetStrResult(interp, "Could not use 'with' on a zero sized struct!");
                         return err.TclError.TCL_ERROR;
                     }
-                    const ptr = try obj.GetFromObj(*strt, interp, objv[2]);
-                    const objc = @intCast(c_int, objv.len - 2);
-                    var objv_subset = objv[2..].ptr;
-                    var clientData = @ptrCast(tcl.ClientData, ptr);
-                    try err.HandleReturn(StructInstanceCommand(clientData, interp, objc, objv_subset));
-                    return;
                 },
             }
 

@@ -100,7 +100,7 @@ pub fn CallDecl(comptime function: anytype, interp: obj.Interp, objc: c_int, obj
     return CallZigFunction(function, interp, args);
 }
 
-pub fn FuncInfo(comptime func_info: std.builtin.TypeInfo) ?std.builtin.TypeInfo.Fn {
+pub fn FuncInfo(comptime func_info: std.builtin.Type) ?std.builtin.Type.Fn {
     if (func_info == .Fn) {
         return func_info.Fn;
     } else if (func_info == .BoundFn) {

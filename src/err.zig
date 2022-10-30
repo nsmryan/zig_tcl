@@ -50,7 +50,7 @@ pub const ErrorSetVariantCmds = enum {
     name,
 };
 
-pub fn RegisterErrorSet(comptime es: type, comptime pkg: []const u8, interp: obj.Interp) c_int {
+pub fn RegisterErrorSet(comptime es: type, comptime name: []const u8, comptime pkg: []const u8, interp: obj.Interp) c_int {
     if (!std.meta.trait.is(.ErrorSet)(es)) {
         obj.SetObjResult(interp, obj.NewStringObj("Attempting to register a non-error set as an error set!"));
         return tcl.TCL_ERROR;
@@ -58,11 +58,11 @@ pub fn RegisterErrorSet(comptime es: type, comptime pkg: []const u8, interp: obj
 
     if (@typeInfo(es).ErrorSet) |errorNames| {
         const terminator: [1]u8 = .{0};
-        const cmdName = pkg ++ "::" ++ @typeName(es) ++ terminator;
+        const cmdName = pkg ++ "::" ++ name ++ terminator;
         _ = obj.CreateObjCommand(interp, cmdName, ErrorSetCommand(es).command) catch |errResult| return ErrorToInt(errResult);
 
         inline for (errorNames) |errorName| {
-            const variantCmdName = pkg ++ "::" ++ @typeName(es) ++ "::" ++ errorName.name ++ terminator;
+            const variantCmdName = pkg ++ "::" ++ name ++ "::" ++ errorName.name ++ terminator;
             _ = obj.CreateObjCommand(interp, variantCmdName, ErrorSetVariantCommand(errorName.name).command) catch |errResult| return ErrorToInt(errResult);
         }
     } else {
@@ -77,7 +77,6 @@ pub fn ErrorSetCommand(comptime es: type) type {
     return struct {
         pub fn command(cdata: tcl.ClientData, interp: [*c]tcl.Tcl_Interp, objv: []const obj.Obj) TclError!void {
             _ = cdata;
-            _ = es;
 
             switch (try obj.GetIndexFromObj(ErrorSetCmds, interp, objv[1], "commands")) {
                 .variants => {
@@ -133,7 +132,7 @@ test "error set variants" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     var result: c_int = undefined;
-    result = RegisterErrorSet(er, "test", interp);
+    result = RegisterErrorSet(er, "er", "test", interp);
     try std.testing.expectEqual(tcl.TCL_OK, result);
 
     try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::er variants"));
@@ -155,7 +154,7 @@ test "error set command" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     var result: c_int = undefined;
-    result = RegisterErrorSet(er, "test", interp);
+    result = RegisterErrorSet(er, "er", "test", interp);
     try std.testing.expectEqual(tcl.TCL_OK, result);
 
     try std.testing.expectEqual(tcl.TCL_OK, tcl.Tcl_Eval(interp, "test::er::e0 name"));
@@ -170,9 +169,10 @@ test "error set throw" {
     defer tcl.Tcl_DeleteInterp(interp);
 
     var result: c_int = undefined;
-    result = RegisterErrorSet(er, "test", interp);
+    result = RegisterErrorSet(er, "er", "test", interp);
     try std.testing.expectEqual(tcl.TCL_OK, result);
 
     try std.testing.expectEqual(tcl.TCL_ERROR, tcl.Tcl_Eval(interp, "test::er::e0"));
+    //std.debug.print("\n{s}\n", .{try obj.GetStringFromObj(tcl.Tcl_GetObjResult(interp))});
     try std.testing.expectEqualSlices(u8, "e0", try obj.GetStringFromObj(tcl.Tcl_GetObjResult(interp)));
 }
