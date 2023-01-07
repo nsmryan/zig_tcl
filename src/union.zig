@@ -75,8 +75,7 @@ pub fn UnionCommand(comptime unn: type) type {
                     const name = try obj.GetStringFromObj(objv[2]);
 
                     // Search for a decl of the given name.
-                    comptime var decls = std.meta.declarations(unn);
-                    inline for (decls) |decl| {
+                    inline for (comptime std.meta.declarations(unn)) |decl| {
                         // Ignore privatve decls
                         if (!decl.is_pub) {
                             continue;
@@ -103,9 +102,8 @@ pub fn UnionCommand(comptime unn: type) type {
                 },
 
                 .variants => {
-                    comptime var fields = std.meta.fields(unn);
                     var resultList = obj.NewListObj(&.{});
-                    inline for (fields) |field| {
+                    inline for (comptime std.meta.fields(unn)) |field| {
                         try obj.ListObjAppendElement(interp, resultList, obj.NewStringObj(field.name));
                         try obj.ListObjAppendElement(interp, resultList, obj.NewStringObj(@typeName(field.field_type)));
                     }
@@ -210,8 +208,7 @@ pub fn UnionCommand(comptime unn: type) type {
             }
 
             const variantName = @tagName(ptr.*);
-            comptime var fields = std.meta.fields(unn);
-            inline for (fields) |field| {
+            inline for (comptime std.meta.fields(unn)) |field| {
                 if (std.mem.eql(u8, variantName, field.name)) {
                     var fieldObj = try obj.ToObj(@field(ptr.*, field.name));
                     obj.SetObjResult(interp, fieldObj);
@@ -231,8 +228,7 @@ pub fn UnionCommand(comptime unn: type) type {
 
             const name = try obj.GetStringFromObj(objv[2]);
 
-            comptime var fields = std.meta.fields(unn);
-            inline for (fields) |field| {
+            inline for (comptime std.meta.fields(unn)) |field| {
                 if (std.mem.eql(u8, name, field.name)) {
                     if (objv.len > 4) {
                         if (@typeInfo(field.field_type) != .Struct) {
@@ -242,8 +238,7 @@ pub fn UnionCommand(comptime unn: type) type {
                         var args: field.field_type = undefined;
 
                         var obj_index: usize = 3;
-                        comptime var chosen_fields = std.meta.fields(field.field_type);
-                        inline for (chosen_fields) |chosen_field| {
+                        inline for (comptime std.meta.fields(field.field_type)) |chosen_field| {
                             @field(args, chosen_field.name) = try obj.GetFromObj(chosen_field.field_type, interp, objv[obj_index]);
                             obj_index += 1;
                         }
@@ -268,8 +263,7 @@ pub fn UnionCommand(comptime unn: type) type {
             const name = try obj.GetStringFromObj(objv[2]);
 
             // Search for a decl of the given name.
-            comptime var decls = std.meta.declarations(unn);
-            inline for (decls) |decl| {
+            inline for (comptime std.meta.declarations(unn)) |decl| {
                 // Ignore privatve decls
                 if (!decl.is_pub) {
                     continue;

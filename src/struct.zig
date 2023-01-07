@@ -73,8 +73,7 @@ pub fn StructCommand(comptime strt: type) type {
                     const name = try obj.GetStringFromObj(objv[2]);
 
                     // Search for a decl of the given name.
-                    comptime var decls = std.meta.declarations(strt);
-                    inline for (decls) |decl| {
+                    inline for (comptime std.meta.declarations(strt)) |decl| {
                         // Ignore private decls
                         if (!decl.is_pub) {
                             continue;
@@ -101,9 +100,8 @@ pub fn StructCommand(comptime strt: type) type {
                 },
 
                 .fields => {
-                    comptime var fields = std.meta.fields(strt);
                     var resultList = obj.NewListObj(&.{});
-                    inline for (fields) |field| {
+                    inline for (comptime std.meta.fields(strt)) |field| {
                         try obj.ListObjAppendElement(interp, resultList, obj.NewStringObj(field.name));
                         try obj.ListObjAppendElement(interp, resultList, obj.NewStringObj(@typeName(field.field_type)));
                     }
@@ -222,8 +220,7 @@ pub fn StructCommand(comptime strt: type) type {
                 const name = try obj.GetStringFromObj(objv[index]);
 
                 var found: bool = false;
-                comptime var fields = std.meta.fields(strt);
-                inline for (fields) |field| {
+                inline for (comptime std.meta.fields(strt)) |field| {
                     if (std.mem.eql(u8, name, field.name)) {
                         found = true;
                         var fieldObj = try obj.ToObj(@field(ptr.*, field.name));
@@ -261,8 +258,7 @@ pub fn StructCommand(comptime strt: type) type {
                 }
 
                 var found: bool = false;
-                comptime var fields = std.meta.fields(strt);
-                inline for (fields) |field| {
+                inline for (comptime std.meta.fields(strt)) |field| {
                     if (std.mem.eql(u8, name[0..@intCast(usize, length)], field.name)) {
                         found = true;
                         try StructSetField(ptr, field.name, interp, objv[index + 1]);
@@ -286,8 +282,7 @@ pub fn StructCommand(comptime strt: type) type {
             const name = try obj.GetStringFromObj(objv[2]);
 
             // Search for a decl of the given name.
-            comptime var decls = std.meta.declarations(strt);
-            inline for (decls) |decl| {
+            inline for (comptime std.meta.declarations(strt)) |decl| {
                 // Ignore private decls
                 if (!decl.is_pub) {
                     continue;
@@ -356,8 +351,7 @@ pub fn StructCommand(comptime strt: type) type {
                 }
 
                 var found: bool = false;
-                comptime var fields = std.meta.fields(strt);
-                inline for (fields) |field| {
+                inline for (comptime std.meta.fields(strt)) |field| {
                     if (std.mem.eql(u8, name[0..@intCast(usize, length)], field.name)) {
                         found = true;
                         obj.SetObjResult(interp, try obj.ToObj(&@field(ptr.*, field.name)));

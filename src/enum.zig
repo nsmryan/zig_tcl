@@ -54,8 +54,7 @@ pub fn EnumCommand(comptime enm: type) type {
                     const name = try obj.GetStringFromObj(objv[2]);
 
                     // Search for a decl of the given name.
-                    comptime var decls = std.meta.declarations(enm);
-                    inline for (decls) |decl| {
+                    inline for (comptime std.meta.declarations(enm)) |decl| {
                         // Ignore privatve decls
                         if (!decl.is_pub) {
                             continue;
@@ -169,8 +168,7 @@ pub fn EnumVariantCommand(comptime enm: type, comptime variantName: []const u8, 
                     const name = try obj.GetStringFromObj(objv[2]);
 
                     // Search for a decl of the given name.
-                    comptime var decls = std.meta.declarations(enm);
-                    inline for (decls) |decl| {
+                    inline for (comptime std.meta.declarations(enm)) |decl| {
                         // Ignore privatve decls
                         if (!decl.is_pub) {
                             continue;
